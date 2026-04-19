@@ -825,8 +825,11 @@ function rebuild() {
   // Suchfilter nach jedem Rebuild erneut anwenden
   if (typeof applySearch === 'function') applySearch();
 
-  // 3D-Ansicht synchronisieren
-  if (settings.threeD && typeof update3D === 'function') update3D();
+  // WebGL-Graph synchronisieren — auch im 2D-Modus, denn die sichtbare
+  // Darstellung laeuft in beiden Modi ueber forceGraph3d (numDimensions 2/3).
+  // Ohne diesen Call wuerde z.B. der Verlaufs-Tiefe-Slider im 2D-Modus
+  // den Graph nicht live aktualisieren.
+  if (typeof update3D === 'function') update3D();
 
   // Adaptive Skalierung: mehr Knoten → etwas kompakter, aber nie zu klein
   const nCount = root.descendants().length;
