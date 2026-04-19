@@ -4,7 +4,7 @@
     {
       "name": "mindmap",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["/Users/peter/.claude/plugins/marketplaces/local-dev/plugins/brainmap/bin/mindmap-server.py"],
+      "runtimeArgs": ["/Users/peter/ClaudeProjects/ki-mindmap/plugins/ai-brainmap/bin/mindmap-server.py"],
       "port": 4823,
       "autoPort": false
     }
