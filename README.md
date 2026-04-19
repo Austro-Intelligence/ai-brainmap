@@ -20,31 +20,6 @@ black boxes.
 
 ---
 
-## Highlights
-
-- 🌞 **HDR sun as root** — procedural core texture, 3-layer chromosphere,
-  bloom falloff, 14 flame protuberances, 26 sparks, 14 micro-explosions and
-  5 solar-storm bursts, all sine-eased with independent life cycles
-- 🎯 **Rock-solid node picking** — screen-space picker with 26 px radius
-  works even on the tiniest leaves; labels are click-targetable too
-- ✨ **Smooth hover** — camera-facing glow halo, scale + opacity ease
-- 🎬 **Bubble-out & retract animations** — children pop out of their parent
-  on expand and suck back into it on collapse, with sine-eased timing
-- ➕ **Collapsed-branch marker** — crisp square "+" glyph inside nodes with
-  hidden children, sine-eased fade-in/out
-- 🌱 **Additive tree growth** — new nodes seed at their parent and flow
-  organically into place; existing positions are cached so the tree stays
-  calm between updates
-- 🔍 **Cineastic search zoom** — every keystroke smoothly orbits the camera
-  onto the centroid of the current hits, with distance scaled to the hit
-  bounding box
-- 🎨 **Bucket-colored tool clusters** — Werkzeuge yellow, Web turquoise,
-  Agenten purple; structured visual grouping by tool type
-- 🖱️ **Click the sun to toggle all** — expand or collapse the entire tree
-- 📴 **Zero cloud** — everything runs locally (Python HTTP + Three.js + D3)
-
----
-
 ## Install
 
 ```text
