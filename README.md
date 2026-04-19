@@ -15,8 +15,8 @@ ai-brainmap turns Claude Code's invisible reasoning into a living mindmap. Every
 
 Open source. Lightweight. Built for developers who want clarity, not black boxes.
 
-> Turn Claude's mind into a map you can read.
+Turn Claude's mind into a map you can read.
 
 ---
 
-Made with <3 in Austria by [Austro Intelligence](https://github.com/Austro-Intelligence).
+Made with ❤️ in 🇦🇹 by [Austro Intelligence](https://austro-intelligence.at).
