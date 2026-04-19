@@ -1,5 +1,4 @@
-
-*********** ANIMATED GIF (Placeholder) *************
+![AI Logo](https://ai.peab.at/images/austro_intelligence_fb-titelbild.png)
 
 # ai-brainmap
 
