@@ -1,8 +1,0 @@
-{
-  "name": "brainmap",
-  "version": "0.2.0",
-  "description": "Brainmap — visualisiert Claudes Denkprozess live als interaktive Mindmap. Jeder Tool-Call, jeder Nutzer-Prompt und jede Antwort erscheint als pulsierender Knoten, der nach Abschluss ruhig wird.",
-  "author": {
-    "name": "peab"
-  }
-}

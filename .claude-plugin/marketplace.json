@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "austro-intelligence",
+  "description": "Plugins by Austro Intelligence — Austrian-grown tooling for Claude Code.",
+  "owner": {
+    "name": "Austro Intelligence",
+    "email": "hello@austro-intelligence.at",
+    "url": "https://austro-intelligence.at"
+  },
+  "homepage": "https://github.com/Austro-Intelligence/ai-brainmap",
+  "plugins": [
+    {
+      "name": "ai-brainmap",
+      "description": "Live Context Visualizer for Claude Code — turns Claude's reasoning into an interactive 2D/3D mindmap (D3.js + local Python server).",
+      "source": "./plugins/ai-brainmap",
+      "category": "visualization",
+      "keywords": ["mindmap", "visualization", "context", "d3", "observability"],
+      "author": {
+        "name": "Austro Intelligence",
+        "url": "https://austro-intelligence.at"
+      },
+      "homepage": "https://github.com/Austro-Intelligence/ai-brainmap",
+      "license": "MIT"
+    }
+  ]
+}
