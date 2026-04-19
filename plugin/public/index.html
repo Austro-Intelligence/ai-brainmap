@@ -312,9 +312,6 @@
     <label class="setting" data-key="showLabels">
       <span>Knoten-Labels</span><div class="toggle"></div>
     </label>
-    <label class="setting" data-key="labelOutline">
-      <span>Label-Outline</span><div class="toggle"></div>
-    </label>
     <div class="group-label">Darstellung</div>
     <label class="setting" data-key="threeD">
       <span>3D</span><div class="toggle"></div>
@@ -393,6 +390,9 @@ delete settings.branchVisible; delete settings.fullHistory; delete settings.show
 delete settings.maxToolEntries;
 if (typeof settings.historyDepth !== 'number') settings.historyDepth = 69;
 if (typeof settings.showLabels !== 'boolean') settings.showLabels = true;
+// Label-Outline ist intern immer an (UI-Toggle entfernt — Outline ist Teil der
+// Default-Darstellung fuer gute Lesbarkeit ueber farbigen Bubbles).
+settings.labelOutline = true;
 if (!settings.collapsed || typeof settings.collapsed !== 'object') settings.collapsed = {};
 
 function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
@@ -1236,28 +1236,26 @@ function init3D() {
       const sizeScale = n.depth <= 1 ? 1 : (0.5 + af * 0.6);
       const sprite = new SpriteText(truncateLabel(n.name));
       sprite.color = settings.lightMode ? readableColor(n.color) : n.color;
-      // Outline statt Hintergrund: schwarz im Dark-Mode, weiß im Light-Mode
-      if (settings.labelOutline !== false) {
-        sprite.strokeColor = settings.lightMode ? 'rgba(255,255,255,0.98)' : 'rgba(0,0,0,0.98)';
-        sprite.strokeWidth = 0.5;  // deutlich dicker für bessere Lesbarkeit
-      } else {
-        sprite.strokeWidth = 0;
-      }
-      sprite.backgroundColor = null;  // kein Hintergrund mehr
+      // Outline: fett fuer klare Lesbarkeit ueber farbigen Bubbles.
+      sprite.strokeColor = settings.lightMode ? 'rgba(255,255,255,1)' : 'rgba(0,0,0,1)';
+      sprite.strokeWidth = 1.2;  // deutlich dickere Outline
+      sprite.backgroundColor = null;  // kein Hintergrund
       sprite.padding = 0;
       sprite.textHeight = baseSize * sizeScale;
-      sprite.position.set(r + 3, 0, 0);
+      // Label-Offset oberhalb der Bubble (Bubble-Radius + halbe Texthoehe + kleiner Gap)
+      const labelOffset = r + (baseSize * sizeScale) * 0.55 + 1.5;
+      sprite.position.set(0, labelOffset, 0);
       sprite.material.depthTest = false;
       sprite.material.transparent = true;
       // Opacity nach Alter: 0.05 (sehr alt) .. 0.97 (neu), Structure/Aktiv = 0.97
       sprite.material.opacity = (n.status === 'thinking' || n.depth <= 1) ? 0.97 : (0.05 + af * 0.92);
       sprite.renderOrder = 10;
       group.add(sprite);
-      // Halte Label-Position in Kamera-Rechts-Richtung
+      // Label immer zentriert OBERHALB der Bubble in Kamera-UP-Richtung
       group.userData.updateLabelPos = (cam) => {
-        const right = new THREE.Vector3();
-        cam.matrixWorld.extractBasis(right, new THREE.Vector3(), new THREE.Vector3());
-        sprite.position.copy(right.multiplyScalar(r + 3));
+        const up = new THREE.Vector3();
+        cam.matrixWorld.extractBasis(new THREE.Vector3(), up, new THREE.Vector3());
+        sprite.position.copy(up.multiplyScalar(labelOffset));
       };
     }
     return group;
