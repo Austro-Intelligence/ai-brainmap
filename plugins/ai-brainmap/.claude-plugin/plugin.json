@@ -1,9 +1,20 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "ai-brainmap",
-  "version": "0.3.0",
-  "description": "Live Context Visualizer for Claude Code — watch Claude think in real time as an interactive 2D/3D mindmap.",
-  "keywords": ["mindmap", "visualization", "context", "live", "d3", "observability"],
+  "version": "0.5.0",
+  "description": "Live Context Visualizer for Claude Code — watch Claude think in real time as an interactive 2D/3D mindmap. Every prompt, tool call and response becomes a glowing node; the tree grows additively as Claude works.",
+  "keywords": [
+    "mindmap",
+    "visualization",
+    "context",
+    "live",
+    "observability",
+    "three.js",
+    "webgl",
+    "force-graph",
+    "debugging",
+    "transparency"
+  ],
   "license": "MIT",
   "homepage": "https://github.com/Austro-Intelligence/ai-brainmap",
   "repository": {

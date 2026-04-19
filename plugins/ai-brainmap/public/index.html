@@ -98,19 +98,19 @@
 
   #legend { bottom: 40px; right: 20px; min-width: 160px; max-width: 240px; }
 
-  /* Open-Source-Hinweis unter der Legende */
-  #os-notice { position: fixed; bottom: 14px; right: 20px; z-index: 9;
-    font-size: 10px; font-family: ui-monospace, Menlo, monospace;
-    color: var(--fg-dim); opacity: 0.65; transition: opacity 0.2s;
-    display: flex; align-items: center; gap: 5px;
-    padding: 3px 8px; border-radius: 10px;
-    background: var(--surface); backdrop-filter: blur(6px);
-    border: 1px solid var(--border); }
-  #os-notice:hover { opacity: 1; border-color: var(--accent); }
+  /* Open-Source-Hinweis — gleiche Bottom-Linie wie Footer, kleinerer Font */
+  #os-notice { position: fixed; bottom: 10px; right: 20px; z-index: 9;
+    font-size: 10px; font-weight: 500;
+    font-family: -apple-system, "SF Pro Display", Helvetica, Arial, sans-serif;
+    line-height: 1; color: var(--fg-dim); opacity: 0.55; transition: opacity 0.2s;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 0; border-radius: 0; letter-spacing: 0.2px;
+    background: transparent; backdrop-filter: none; border: none; }
+  #os-notice:hover { opacity: 1; }
   #os-notice a { color: inherit; text-decoration: none; display: inline-flex;
-    align-items: center; gap: 4px; }
+    align-items: center; gap: 4px; line-height: 1; }
   #os-notice a:hover { color: var(--accent); }
-  #os-notice svg { width: 11px; height: 11px; fill: currentColor; }
+  #os-notice svg { width: 10px; height: 10px; fill: currentColor; }
   #legend-list { display: flex; flex-direction: column; gap: 3px; padding: 4px 0; }
   #legend-list .row { display: flex; align-items: center; gap: 8px; padding: 2px 0;
     font-size: 11px; color: var(--fg); }
@@ -118,25 +118,19 @@
 
   #settings { top: 20px; right: 20px; min-width: 230px; max-height: 82vh; overflow-y: auto; }
   /* Auto-Fit Button (beide Modi) */
-  #auto-fit-btn { position: fixed; top: 16px; left: 16px; z-index: 11;
-    width: 40px; height: 40px; border-radius: 50%;
+  #auto-fit-btn { position: fixed; top: 14px; left: 16px; z-index: 11;
+    width: 32px; height: 32px; border-radius: 50%;
     background: var(--surface); backdrop-filter: blur(8px);
     border: 1px solid var(--border); color: var(--fg);
-    font-size: 18px; cursor: pointer; transition: all 0.15s;
+    font-size: 15px; cursor: pointer; transition: all 0.15s;
     display: flex; align-items: center; justify-content: center; line-height: 1;
+    padding: 0; box-sizing: border-box;
     font-family: inherit; }
   #auto-fit-btn:hover { border-color: var(--accent); color: var(--accent);
     box-shadow: 0 0 12px rgba(253,224,71,0.25); }
 
-  /* Blender-Style 3D-Gizmo */
-  #gizmo3d { position: fixed; top: 10px; left: 62px; z-index: 11; display: none;
-    user-select: none; }
-  body.three-d #gizmo3d { display: block; }
-  #gizmo3d .axis-ball { cursor: pointer; transition: filter 0.15s; }
-  #gizmo3d .axis-ball:hover { filter: brightness(1.4); }
-  #gizmo3d .axis-reset { cursor: pointer; fill: rgba(200,200,200,0.15); stroke: rgba(200,200,200,0.5); }
-  #gizmo3d .axis-reset:hover { fill: rgba(253,224,71,0.25); stroke: var(--accent); }
-  #gizmo3d text { font-family: -apple-system, Helvetica, Arial, sans-serif; font-weight: 800; pointer-events: none; }
+  /* 3D-Gizmo im 3D-Modus ausgeblendet (auf Wunsch des Nutzers entfernt) */
+  #gizmo3d { display: none !important; }
   #settings .setting { display: flex; align-items: center; justify-content: space-between;
     gap: 10px; padding: 5px 0; cursor: pointer; user-select: none; }
   #settings .setting span { color: var(--fg); font-size: 11px; }
@@ -167,6 +161,30 @@
   #settings .sub.slider-row em { font-style: normal; color: var(--accent); font-weight: 600;
     font-family: ui-monospace, Menlo, monospace; }
   #settings input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+  /* Schmale Viewports: Suchleiste oben voll, Einstellungen darunter — nichts überlappt */
+  @media (max-width: 720px) {
+    #searchbar {
+      left: 64px;
+      right: 14px;
+      top: 14px;
+      transform: none;
+      width: auto;
+    }
+    #searchbar input { width: auto; flex: 1 1 auto; min-width: 0; }
+    #settings {
+      top: 62px;
+      right: 14px;
+      left: auto;
+      max-width: calc(100vw - 28px);
+      max-height: calc(100vh - 80px);
+    }
+    #legend { max-width: calc(100vw - 28px); }
+    #log { max-width: calc(100vw - 28px); }
+  }
+  @media (max-width: 480px) {
+    #settings { min-width: unset; width: calc(100vw - 28px); }
+  }
 
   #panel { position: fixed; top: 0; right: -440px; width: 420px; height: 100vh;
     background: var(--surface-strong); backdrop-filter: blur(12px);
@@ -620,9 +638,13 @@ function resolveParent(tree, thought) {
 
 function isCollapsed(key) { return !!settings.collapsed[key]; }
 let hasHiddenChildren = new Set();
+// Explizit an window haengen, damit Closures (rAF-Loops) zuverlaessig die
+// aktuelle Instanz bekommen — nicht eine ueberholte Referenz.
+window.__hasHiddenChildren = hasHiddenChildren;
 
 function buildTree() {
   hasHiddenChildren = new Set();
+  window.__hasHiddenChildren = hasHiddenChildren;
   const tree = JSON.parse(JSON.stringify(baseTree));
 
   // Thoughts nach seq sortieren (Prompts kommen vor ihren Tools)
@@ -702,7 +724,11 @@ function buildTree() {
     for (const bucketName of toolBucketNames) {
       const bucket = findNode(tree, bucketName);
       if (!bucket) continue;
-      const n = { name: theme, color: col, _key: `th:${bucketName}:${theme}`, children: [] };
+      // Theme-Sub-Branches unter Tool-Buckets bekommen die BUCKET-Farbe
+      // (Werkzeuge = gelb, Web = tyrkis, Agenten = lila) — nicht die Theme-Farbe.
+      // So sind alle Sub-Knoten unter einem Bucket farblich einheitlich.
+      // Nur unter "Themen" wird die Theme-Farbe verwendet.
+      const n = { name: theme, color: bucket.color, _key: `th:${bucketName}:${theme}`, children: [] };
       bucket.children.push(n);
       themeNodes[bucketName].set(theme, n);
     }
@@ -745,7 +771,7 @@ function hasThinking(node) {
   return node.children.some(c => c.data._status === 'thinking' || hasThinking(c));
 }
 
-function rebuild() {
+function rebuild(opts) {
   const saved = new Map();
   if (root) root.descendants().forEach(n => saved.set(keyOf(n), { x: n.x, y: n.y, vx: n.vx || 0, vy: n.vy || 0 }));
 
@@ -850,16 +876,16 @@ function rebuild() {
   // Darstellung laeuft in beiden Modi ueber forceGraph3d (numDimensions 2/3).
   // Ohne diesen Call wuerde z.B. der Verlaufs-Tiefe-Slider im 2D-Modus
   // den Graph nicht live aktualisieren.
-  if (typeof update3D === 'function') update3D();
+  if (typeof update3D === 'function') update3D(opts);
 
   // Adaptive Skalierung: mehr Knoten → etwas kompakter, aber nie zu klein
   const nCount = root.descendants().length;
   const densityScale = Math.max(0.8, Math.min(1.2, Math.sqrt(50 / Math.max(30, nCount))));
   if (!sim) {
     sim = d3.forceSimulation(root.descendants())
-      .velocityDecay(0.78)      // stärkere Dämpfung — ruhigere Bewegungen
-      .alphaDecay(0.045)        // kommt schneller zum Stillstand
-      .alphaMin(0.003)
+      .velocityDecay(0.72)      // Daempfung unveraendert
+      .alphaDecay(0.012)        // 3.33x laenger bis Stillstand
+      .alphaMin(0.002)
       .force("link", d3.forceLink(root.links()).id(keyOf)
         .distance(d => (d.source.depth === 0 ? 190 : d.source.depth === 1 ? 70 : 45) * densityScale)
         .strength(d => d.source.depth === 1 ? 1.1 : d.source.depth >= 2 ? 0.9 : 0.7))
@@ -876,8 +902,10 @@ function rebuild() {
     sim.force("collide").radius(d => (d.depth === 0 ? 90 : d.depth === 1 ? 55 : d.depth === 2 ? 40 : 28) * densityScale);
     sim.nodes(root.descendants());
     sim.force("link").links(root.links());
-    // Weniger Energie beim Rebuild — Graph "zappelt" nicht mehr bei jedem neuen Event
-    sim.alpha(0.15).restart();
+    // Reheat: beim Toggle mit kraeftigerem Impuls damit neue Sub-Knoten
+    // schnell ihre Position finden. Bei neuen Thoughts sanfter.
+    if (opts && opts.fromToggle) sim.alpha(0.25).restart();
+    else sim.alpha(0.08).restart();
   }
 
   // Auto-Fit beim ersten Rebuild (nach Settle der Simulation)
@@ -914,22 +942,69 @@ function nodeClass(d) {
   return parts.join(" ");
 }
 
+// Retract-Animation fuer Knoten die gleich verschwinden: sie fliegen in
+// das Parent-Zentrum und schrumpfen dabei. Die tatsaechliche Entfernung
+// aus dem Graph erfolgt erst NACH der Animation.
+const RETRACT_DUR = 733;  // ms
+function startRetractAnimation(rootD) {
+  if (!forceGraph3d || !window.THREE) return;
+  const scene = forceGraph3d.scene && forceGraph3d.scene();
+  if (!scene) return;
+  const parentKey = keyOf(rootD);
+  // Parent-Weltposition ermitteln
+  let parentGroup = null;
+  scene.traverse(o => { if (!parentGroup && o.userData && o.userData.nodeId === parentKey) parentGroup = o; });
+  if (!parentGroup) return;
+  const pwp = new THREE.Vector3();
+  parentGroup.getWorldPosition(pwp);
+  // IDs aller Nachkommen sammeln (die gleich hidden werden)
+  const toHide = new Set();
+  (function collect(n){ if(!n.children) return; for(const c of n.children){ toHide.add(keyOf(c)); collect(c); } })(rootD);
+  // Deren Gruppen fuer Retract markieren
+  const now = performance.now();
+  scene.traverse(obj => {
+    if (!obj.userData || !obj.userData.nodeId) return;
+    if (!toHide.has(obj.userData.nodeId)) return;
+    obj.userData.retracting = true;
+    obj.userData.retractStartT = now;
+    obj.userData.retractFrom = { x: obj.position.x, y: obj.position.y, z: obj.position.z };
+    obj.userData.retractTo = { x: pwp.x, y: pwp.y, z: pwp.z };
+  });
+}
+
 function toggleCollapse(d) {
   const k = keyOf(d);
-  // Depth-1-Hauptäste (Werkzeuge, Themen, Agenten, Web): falls sie Theme-Sub-Knoten
-  // haben, Klick togglet alle Sub-Themen gleichzeitig (alle einblenden / alle ausblenden).
-  if (d.depth === 1 && d.children && d.children.length > 1) {
-    const anyExpanded = d.children.some(c => !settings.collapsed[keyOf(c)]);
-    for (const c of d.children) {
-      const ck = keyOf(c);
-      if (anyExpanded) settings.collapsed[ck] = true;
-      else delete settings.collapsed[ck];
+  // Entscheiden: ist der Klick insgesamt eine Collapse-Aktion (→ Retract
+  // zeigen) oder eine Expand-Aktion (→ sofort rebuilden, Bubble-Out im rAF)?
+  const isD1Main = d.depth === 1 && d.children && d.children.length > 1;
+  const willCollapse = isD1Main
+    ? d.children.some(c => !settings.collapsed[keyOf(c)])
+    : !settings.collapsed[k];
+
+  const applyToggle = () => {
+    if (isD1Main) {
+      const anyExpanded = d.children.some(c => !settings.collapsed[keyOf(c)]);
+      for (const c of d.children) {
+        const ck = keyOf(c);
+        if (anyExpanded) settings.collapsed[ck] = true;
+        else delete settings.collapsed[ck];
+      }
+    } else {
+      if (settings.collapsed[k]) delete settings.collapsed[k];
+      else settings.collapsed[k] = true;
     }
+    saveSettings();
+    rebuild({ fromToggle: true });
+  };
+
+  if (willCollapse) {
+    // Kinder schnuppern zuerst in den Parent zurueck, dann erst wegraeumen
+    startRetractAnimation(d);
+    setTimeout(applyToggle, RETRACT_DUR);
   } else {
-    if (settings.collapsed[k]) delete settings.collapsed[k];
-    else settings.collapsed[k] = true;
+    // Expand: sofort bauen — neue Kinder spawnen am Parent + Bubble-Out-Scale
+    applyToggle();
   }
-  saveSettings(); rebuild();
 }
 
 function tick() {
@@ -1084,6 +1159,9 @@ async function copyText(s) { try { await navigator.clipboard.writeText(s); } cat
 const searchInput = document.getElementById('search-input');
 const searchHits = document.getElementById('search-hits');
 let searchTerm = "";
+// Speichert die aktuellen Treffer-IDs fuer den Fokus-Zoom der Suche.
+window.__searchMatchIds = new Set();
+
 function applySearch() {
   if (!searchHits) return;
   const q = searchTerm.trim().toLowerCase();
@@ -1101,61 +1179,77 @@ function applySearch() {
       || (d.source.data.name || "").toLowerCase().includes(q));
     this.classList.toggle('search-dim', active && !hit);
   });
-  // 3D-Match: Opacity der Sphere-Materials anpassen
-  if (forceGraph3d && window.THREE) {
-    const scene = forceGraph3d.scene();
-    if (scene) {
-      const data = forceGraph3d.graphData();
-      const matchIds = new Set();
-      if (active) {
-        data.nodes.forEach(n => {
-          if ((n.name || "").toLowerCase().includes(q)) matchIds.add(n.id);
-        });
-        if (!settings.threeD) {} else hits = matchIds.size;  // use 3D hits if 2D hidden
-      }
-      // Nodes: traverse graph's node-objects
+  // Treffer-IDs fuer den Fokus-Zoom merken (Pfad-Set bleibt nur als
+  // Datenbasis fuer das Heranzoomen auf die Trefferregion — keine
+  // visuellen Dim-Effekte mehr auf Knoten oder Links).
+  if (forceGraph3d) {
+    const data = forceGraph3d.graphData();
+    const ids = new Set();
+    if (active) {
       data.nodes.forEach(n => {
-        const obj = n.__threeObj;
-        if (!obj) return;
-        obj.traverse(child => {
-          if (child.material && child.material.opacity !== undefined) {
-            if (!active) {
-              // reset: restore age-based opacity on spheres
-              if (child.geometry && child.geometry.type === 'SphereGeometry') {
-                const af = typeof n._ageFactor === 'number' ? n._ageFactor : 0.6;
-                child.material.opacity = (n.status !== 'thinking' && n.depth > 1) ? 0.05 + af * 0.92 : 0.97;
-              } else {
-                child.material.opacity = 0.97;
-              }
-            } else {
-              child.material.opacity = matchIds.has(n.id) ? 1 : 0.08;
-            }
-            child.material.transparent = true;
-          }
-        });
+        if ((n.name || "").toLowerCase().includes(q)) ids.add(n.id);
       });
-      // Links: dim non-matches
-      data.links.forEach(l => {
-        const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-        const dstId = typeof l.target === 'object' ? l.target.id : l.target;
-        const hit = !active || matchIds.has(srcId) || matchIds.has(dstId);
-        if (l.__lineObj && l.__lineObj.material) {
-          l.__lineObj.material.opacity = hit ? 0.3 : 0.03;
-          l.__lineObj.material.transparent = true;
-        }
-      });
+      hits = ids.size;
     }
+    window.__searchMatchIds = ids;
+    window.__searchPathIds = new Set();  // leer → keine Pfad-Filterung mehr
   }
   searchHits.textContent = active ? (hits + ' Treffer') : '';
 }
-if (searchInput) searchInput.addEventListener('input', () => { searchTerm = searchInput.value; applySearch(); });
+
+// Fokus-Zoom: nutzt die gleiche orbitale Kamerafahrt wie focusNodeById
+// (Klick im Aktivitaetslog). Fliegt auf den Treffer-Centroiden, waehlt
+// Distanz passend zur Treffer-BBox. Bei leerer Suche -> Full-Auto-Fit.
+function zoomToSearch() {
+  if (!forceGraph3d) return;
+  const ids = window.__searchMatchIds;
+  if (!ids || ids.size === 0) {
+    if (forceGraph3d.zoomToFit) forceGraph3d.zoomToFit(1066, 80);
+    return;
+  }
+  const data = forceGraph3d.graphData();
+  const matches = data.nodes.filter(n => ids.has(n.id) && typeof n.x === 'number');
+  if (matches.length === 0) return;
+
+  // Centroid + maximale Distanz vom Centroid (= BBox-Radius)
+  let cx = 0, cy = 0, cz = 0;
+  matches.forEach(n => { cx += n.x; cy += n.y; cz += (n.z || 0); });
+  cx /= matches.length; cy /= matches.length; cz /= matches.length;
+  let maxDist = 0;
+  matches.forEach(n => {
+    const d = Math.hypot(n.x - cx, n.y - cy, (n.z || 0) - cz);
+    if (d > maxDist) maxDist = d;
+  });
+
+  // Kamera-Distanz: Mindestens 140 (wie focusNodeById fuer Single-Node),
+  // skaliert mit BBox-Radius fuer Multi-Match
+  const distance = Math.max(140, maxDist * 2.4 + 90);
+  const len = Math.hypot(cx || 0.01, cy || 0.01, cz || 0.01);
+  const distRatio = 1 + distance / Math.max(len, 10);
+
+  forceGraph3d.cameraPosition(
+    { x: cx * distRatio, y: cy * distRatio, z: cz * distRatio },
+    { x: cx, y: cy, z: cz },
+    1000
+  );
+}
+
+if (searchInput) {
+  // "input" feuert bei jeder Aenderung (Tippen, Backspace, Paste, Clear-X).
+  searchInput.addEventListener('input', () => {
+    searchTerm = searchInput.value;
+    applySearch();
+    // Nach jedem Keystroke in den Treffer-Cluster zoomen.
+    zoomToSearch();
+  });
+}
 
 // Auto-Fit Button (beide Modi — nutzen denselben WebGL-Graph)
 function doAutoFit() {
   if (!forceGraph3d || !forceGraph3d.zoomToFit) { autoFit(); return; }
   // Warte bis Simulation settled bevor fit (sonst kann bbox noch 0 sein)
   const pad = settings.threeD ? 80 : 110;
-  forceGraph3d.zoomToFit(900, pad);
+  forceGraph3d.zoomToFit(1665, pad);
   // In 2D: zusätzlich Kamera auf Z-Achse zwingen (nach zoomToFit kann sich x/y verschieben)
   if (!settings.threeD) {
     setTimeout(() => {
@@ -1185,6 +1279,13 @@ function init3D() {
   forceGraph3d
     .backgroundColor(settings.lightMode ? '#eaedf3' : '#070b10')
     .nodeResolution(24)
+    // Physik 3.33x laenger: Simulation kuehlt deutlich langsamer ab,
+    // Knoten-Bewegungen wirken ausgedehnter und cineastischer.
+    .d3VelocityDecay(0.72)
+    .d3AlphaDecay(0.012)
+    .d3AlphaMin(0.002)
+    .warmupTicks(20)
+    .cooldownTime(13320)
     .nodeLabel(n => `<div class="graph-tooltip" style="color:${n.color};background:rgba(15,20,25,0.92);border:1px solid ${n.color}40;font-weight:600">${escapeHtml(n.name)}</div>`)
     .linkColor(l => l.color || '#555')
     .linkOpacity(0.35)
@@ -1202,25 +1303,462 @@ function init3D() {
     })
     .linkDirectionalParticleColor(l => l.color || '#fde047')
     .showNavInfo(false)
-    .onNodeClick(n => {
-      const d3Node = root.descendants().find(x => keyOf(x) === n.id);
-      if (!d3Node) return;
-      const k = keyOf(d3Node);
-      const hasKids = (d3Node.children && d3Node.children.length > 0) || hasHiddenChildren.has(k);
-      // Struktur-/Parent-Knoten togglen Collapse; Leaf-Knoten (einzelne Gedanken) öffnen das Panel.
-      if (d3Node.depth <= 1 || hasKids) {
-        toggleCollapse(d3Node);
-      } else {
-        onNodeClick(d3Node);
-      }
-    })
     .onBackgroundClick(() => closePanel());
+
+  // --- Klick-Logik einmal extrahieren, damit sie vom Raycast- UND vom
+  //     Screen-Space-Picker aufgerufen werden kann ---
+  // Regeln:
+  //   • Sonne (Root, depth 0): expandet ALLE Knoten.
+  //   • Knoten mit Panel-Inhalt (Leaf): oeffnet/aktualisiert Side-Panel.
+  //   • Struktur-Knoten: toggelt Collapse + schliesst Side-Panel.
+  function handleNodeClick(n) {
+    if (!n) return;
+    const d3Node = root.descendants().find(x => keyOf(x) === n.id);
+    if (!d3Node) return;
+    if (d3Node.depth === 0) {
+      // Sonne: Global-Toggle zwischen vollstaendig expandiert und komplett kollabiert.
+      // Wenn irgendwas collapsed ist → alle expanden. Sonst → alle (Struktur-)Knoten
+      // mit Kindern zuklappen.
+      const hasAnyCollapsed = Object.keys(settings.collapsed).length > 0;
+      if (hasAnyCollapsed) {
+        settings.collapsed = {};
+      } else {
+        settings.collapsed = {};
+        root.descendants().forEach(x => {
+          if (x.depth > 0 && x.children && x.children.length > 0) {
+            settings.collapsed[keyOf(x)] = true;
+          }
+        });
+      }
+      saveSettings();
+      rebuild({ fromToggle: true });
+      closePanel();
+      return;
+    }
+    const k = keyOf(d3Node);
+    const hasKids = (d3Node.children && d3Node.children.length > 0) || hasHiddenChildren.has(k);
+    const isStructure = d3Node.depth <= 1 || hasKids;
+    if (isStructure) {
+      toggleCollapse(d3Node);
+      closePanel();
+    } else {
+      onNodeClick(d3Node);
+    }
+  }
+
+  // Screen-Space-Picker: projiziert jeden Knoten in Bildschirmkoordinaten und
+  // findet den in Pixelabstand naechsten (der vor der Kamera steht). Das
+  // umgeht Raycast-Probleme bei dicht beieinander liegenden kleinen Spheren.
+  const PICK_RADIUS_PX = 26;
+  // Label-Pick-Hilfsfunktion: Textbreite grob aus der SpriteText-Canvas ableiten,
+  // dann in Welt-Einheiten umrechnen ueber sprite.scale (SpriteText setzt scale
+  // = (canvasW/canvasH * textHeight, textHeight, 1)).
+  function __labelWorldHalfSize(sprite) {
+    if (!sprite) return null;
+    const sx = sprite.scale.x * 0.5;  // halbe Breite in Welt-Einheiten
+    const sy = sprite.scale.y * 0.5;  // halbe Hoehe in Welt-Einheiten
+    return { hx: sx, hy: sy };
+  }
+  function findNearestNodeAtPx(clientX, clientY) {
+    const canvas = document.querySelector('#map-3d canvas');
+    if (!canvas || !forceGraph3d) return null;
+    const rect = canvas.getBoundingClientRect();
+    const mx = clientX - rect.left;
+    const my = clientY - rect.top;
+    const W = rect.width, H = rect.height;
+    const cam = forceGraph3d.camera();
+    const data = forceGraph3d.graphData();
+    if (!cam || !data) return null;
+    const v = new THREE.Vector3();
+    const vLabel = new THREE.Vector3();
+    let best = null, bestD = Infinity, bestDepth = Infinity;
+    for (const n of data.nodes) {
+      v.set(n.x || 0, n.y || 0, n.z || 0).project(cam);
+      if (v.z < -1 || v.z > 1) continue;  // ausserhalb Frustum
+      const sx = (v.x * 0.5 + 0.5) * W;
+      const sy = (-v.y * 0.5 + 0.5) * H;
+      const dCenter = Math.hypot(sx - mx, sy - my);
+      let d = dCenter;
+      // --- Label-Hit: Rechteck um die Sprite-Weltposition in Screenraum ---
+      // Klick innerhalb => effektive Distanz 0 (Label schlaegt Knoten-Zentrum).
+      const obj = n.__threeObj;
+      if (obj && obj.userData && obj.userData.labelSprite) {
+        const spr = obj.userData.labelSprite;
+        spr.getWorldPosition(vLabel);
+        vLabel.project(cam);
+        if (vLabel.z >= -1 && vLabel.z <= 1) {
+          const lx = (vLabel.x * 0.5 + 0.5) * W;
+          const ly = (-vLabel.y * 0.5 + 0.5) * H;
+          // Halbgroessen der Sprite-Bounds in Screenspace: pro Welt-Einheit
+          // Pixelskala ueber Vergleichspunkt + 1 Welt-Einheit in Kamera-X/Y.
+          // Approximation: nutze projected delta der Sprite-scale.
+          const s = __labelWorldHalfSize(spr);
+          if (s) {
+            // Projiziere Offset-Punkte, um Welt→Screen-Skala zu ermitteln.
+            const wpos = new THREE.Vector3(); spr.getWorldPosition(wpos);
+            const right = new THREE.Vector3(); const up = new THREE.Vector3();
+            cam.matrixWorld.extractBasis(right, up, new THREE.Vector3());
+            const pR = wpos.clone().add(right.clone().multiplyScalar(s.hx)).project(cam);
+            const pU = wpos.clone().add(up.clone().multiplyScalar(s.hy)).project(cam);
+            const halfW = Math.abs((pR.x * 0.5 + 0.5) * W - lx) + 6;  // +6 px Toleranz
+            const halfH = Math.abs((-pU.y * 0.5 + 0.5) * H - ly) + 4;
+            const dx = Math.max(0, Math.abs(mx - lx) - halfW);
+            const dy = Math.max(0, Math.abs(my - ly) - halfH);
+            const dLabel = Math.hypot(dx, dy);  // 0 wenn innerhalb
+            if (dLabel < d) d = dLabel;
+          }
+        }
+      }
+      if (d > PICK_RADIUS_PX) continue;
+      // Ziehe in dichten Clustern den naeheren Knoten vor; bei gleichem
+      // Pixelabstand den kamera-naeheren (kleinerer z).
+      if (d < bestD - 2 || (Math.abs(d - bestD) < 2 && v.z < bestDepth)) {
+        best = n; bestD = d; bestDepth = v.z;
+      }
+    }
+    return best;
+  }
+
+  // Drag-Erkennung, damit Kamera-Orbit keinen Klick ausloest
+  let __dragMoved = false, __downX = 0, __downY = 0;
+  const attachScreenPicker = () => {
+    const canvas = document.querySelector('#map-3d canvas');
+    if (!canvas || canvas.__screenPickerAttached) return;
+    canvas.__screenPickerAttached = true;
+    canvas.addEventListener('pointerdown', ev => {
+      __dragMoved = false; __downX = ev.clientX; __downY = ev.clientY;
+    });
+    canvas.addEventListener('pointermove', ev => {
+      if (ev.buttons) {
+        if (Math.hypot(ev.clientX - __downX, ev.clientY - __downY) > 4) __dragMoved = true;
+        return;
+      }
+      const n = findNearestNodeAtPx(ev.clientX, ev.clientY);
+      window.__hoveredNodeId = n ? n.id : null;
+      document.body.style.cursor = n ? 'pointer' : '';
+    });
+    canvas.addEventListener('pointerleave', () => {
+      window.__hoveredNodeId = null;
+      document.body.style.cursor = '';
+    });
+    // Capture-Phase: wir fangen den Klick vor 3d-force-graph ab und
+    // verhindern das Default-Click-Handling, damit nichts doppelt feuert.
+    canvas.addEventListener('click', ev => {
+      if (__dragMoved) return;
+      const n = findNearestNodeAtPx(ev.clientX, ev.clientY);
+      if (n) {
+        ev.stopPropagation();
+        handleNodeClick(n);
+      }
+    }, true);
+  };
+  // Canvas existiert evtl. erst nach dem ersten graphData-Set; versuchen
+  // wir es sowohl jetzt als auch nach kurzem Delay.
+  attachScreenPicker();
+  setTimeout(attachScreenPicker, 50);
+  setTimeout(attachScreenPicker, 500);
+  // --- Quadratische "+"-Textur: weiss mit schwarzem Outline, einmal gecached ---
+  function __plusTex() {
+    if (window.__plusTex) return window.__plusTex;
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, 128, 128);
+    // Zeichne das "+" als 2 dicke Balken mit rundem Cap
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    // Outline (schwarz, dicker)
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 32;
+    ctx.beginPath();
+    ctx.moveTo(64, 26); ctx.lineTo(64, 102);
+    ctx.moveTo(26, 64); ctx.lineTo(102, 64);
+    ctx.stroke();
+    // Fill (weiss, duenner darueber)
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 20;
+    ctx.beginPath();
+    ctx.moveTo(64, 30); ctx.lineTo(64, 98);
+    ctx.moveTo(30, 64); ctx.lineTo(98, 64);
+    ctx.stroke();
+    const tex = new THREE.CanvasTexture(c);
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    window.__plusTex = tex;
+    return tex;
+  }
+
+  // --- Sinus-Ease-Utilities (fuer alle Hover/Transition-Animationen) ---
+  const easeSineInOut = p => 0.5 - 0.5 * Math.cos(Math.PI * Math.max(0, Math.min(1, p)));
+  const easeSineIn    = p => 1 - Math.cos((Math.PI / 2) * Math.max(0, Math.min(1, p)));
+  const easeSineOut   = p => Math.sin((Math.PI / 2) * Math.max(0, Math.min(1, p)));
+
+  // --- HDR-Sonnen-Texturen: prozedural in Canvas gemalt (einmal cachen) ---
+  function __sunCoreTex() {
+    if (window.__sunCoreTex) return window.__sunCoreTex;
+    const c = document.createElement('canvas');
+    c.width = 1024; c.height = 512;
+    const ctx = c.getContext('2d');
+    // Basis-Gradient: weissglueh im Aequator, kuehler an den Polen (realistischer)
+    const baseG = ctx.createLinearGradient(0, 0, 0, 512);
+    baseG.addColorStop(0.00, '#ffb860');
+    baseG.addColorStop(0.25, '#ffd688');
+    baseG.addColorStop(0.50, '#fff1b4');
+    baseG.addColorStop(0.75, '#ffc46c');
+    baseG.addColorStop(1.00, '#ff9a48');
+    ctx.fillStyle = baseG; ctx.fillRect(0, 0, 1024, 512);
+    // Granulation: tausende kleine Blobs (Konvektionszellen)
+    for (let i = 0; i < 2200; i++) {
+      const x = Math.random() * 1024, y = Math.random() * 512;
+      const r = 1.5 + Math.random() * 9;
+      const hot = Math.random();
+      const h = 25 + hot * 25;
+      const l = 60 + hot * 30;
+      const a = 0.15 + Math.random() * 0.35;
+      const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+      rg.addColorStop(0, `hsla(${h},100%,${l}%,${a})`);
+      rg.addColorStop(1, `hsla(${h},100%,${l}%,0)`);
+      ctx.fillStyle = rg;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    // Sonnenflecken (dunkle gekuehlte Regionen)
+    for (let i = 0; i < 28; i++) {
+      const x = Math.random() * 1024, y = 120 + Math.random() * 272;
+      const r = 4 + Math.random() * 9;
+      const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+      rg.addColorStop(0.0, 'rgba(70,24,8,0.78)');
+      rg.addColorStop(0.55, 'rgba(120,48,14,0.35)');
+      rg.addColorStop(1.0, 'rgba(120,48,14,0)');
+      ctx.fillStyle = rg;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    // Heisse Fackeln (hellere Regionen)
+    for (let i = 0; i < 60; i++) {
+      const x = Math.random() * 1024, y = Math.random() * 512;
+      const r = 3 + Math.random() * 7;
+      const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+      rg.addColorStop(0.0, 'rgba(255,252,230,0.85)');
+      rg.addColorStop(1.0, 'rgba(255,252,230,0)');
+      ctx.fillStyle = rg;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 8;
+    window.__sunCoreTex = tex;
+    return tex;
+  }
+
+  function __sunBloomTex() {
+    if (window.__sunBloomTex) return window.__sunBloomTex;
+    const c = document.createElement('canvas');
+    c.width = c.height = 512;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(256, 256, 12, 256, 256, 256);
+    g.addColorStop(0.00, 'rgba(255,255,255,1)');
+    g.addColorStop(0.10, 'rgba(255,240,200,0.9)');
+    g.addColorStop(0.28, 'rgba(255,190,110,0.5)');
+    g.addColorStop(0.55, 'rgba(255,100,40,0.18)');
+    g.addColorStop(0.80, 'rgba(255,50,10,0.05)');
+    g.addColorStop(1.00, 'rgba(255,30,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 512);
+    window.__sunBloomTex = new THREE.CanvasTexture(c);
+    return window.__sunBloomTex;
+  }
+
+  function __sunFlareTex() {
+    if (window.__sunFlareTex) return window.__sunFlareTex;
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 512;
+    const ctx = c.getContext('2d');
+    // Vertikales Flammenprofil: weiss-heiss unten → orange → rot → transparent oben
+    const v = ctx.createLinearGradient(0, 512, 0, 0);
+    v.addColorStop(0.00, 'rgba(255,60,10,0)');
+    v.addColorStop(0.05, 'rgba(255,110,40,0.55)');
+    v.addColorStop(0.22, 'rgba(255,200,110,0.9)');
+    v.addColorStop(0.45, 'rgba(255,240,200,0.95)');
+    v.addColorStop(0.72, 'rgba(255,170,60,0.75)');
+    v.addColorStop(0.92, 'rgba(255,80,20,0.3)');
+    v.addColorStop(1.00, 'rgba(255,40,0,0)');
+    ctx.fillStyle = v; ctx.fillRect(0, 0, 64, 512);
+    // Feather an den Seiten
+    ctx.globalCompositeOperation = 'destination-out';
+    const h = ctx.createLinearGradient(0, 0, 64, 0);
+    h.addColorStop(0.0, 'rgba(0,0,0,1)');
+    h.addColorStop(0.5, 'rgba(0,0,0,0)');
+    h.addColorStop(1.0, 'rgba(0,0,0,1)');
+    ctx.fillStyle = h; ctx.fillRect(0, 0, 64, 512);
+    ctx.globalCompositeOperation = 'source-over';
+    window.__sunFlareTex = new THREE.CanvasTexture(c);
+    return window.__sunFlareTex;
+  }
+
+  // --- HDR-Sonnen-Root: kleiner, detaillierter, game-like realistisch ---
+  function createSunObject(n) {
+    const group = new THREE.Group();
+    const R = 8;   // deutlich kleiner als zuvor (war 14)
+
+    // Kern mit prozeduraler Oberflaechentextur (Granulation + Sonnenflecken)
+    const core = new THREE.Mesh(
+      new THREE.SphereGeometry(R, 64, 64),
+      new THREE.MeshBasicMaterial({ map: __sunCoreTex() })
+    );
+    group.add(core);
+
+    // Chromosphaere: duenne orangene Schicht knapp ueber der Oberflaeche
+    const chromo = new THREE.Mesh(
+      new THREE.SphereGeometry(R * 1.04, 48, 48),
+      new THREE.MeshBasicMaterial({
+        color: 0xff8a3a, transparent: true, opacity: 0.28,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.FrontSide
+      })
+    );
+    group.add(chromo);
+
+    // Bloom/Glow-Schichten (HDR-Feel via additive Sprite-Billboards)
+    const bloomTex = __sunBloomTex();
+    const bloomLayers = [];
+    const bloomCfgs = [
+      { scale: 2.3, color: 0xfff2c8, opacity: 0.90 },  // heiss-nah
+      { scale: 3.6, color: 0xffb060, opacity: 0.55 },  // orange mid
+      { scale: 5.8, color: 0xff6628, opacity: 0.32 },  // tief-orange
+      { scale: 9.0, color: 0xcc2a10, opacity: 0.17 }   // roter Auslaeufer
+    ];
+    for (const cfg of bloomCfgs) {
+      const m = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: bloomTex, color: cfg.color,
+        transparent: true, opacity: cfg.opacity,
+        blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
+      }));
+      m.scale.set(R * cfg.scale, R * cfg.scale, 1);
+      m.renderOrder = -10 - bloomLayers.length;
+      m.userData.baseScale = cfg.scale;
+      m.userData.baseOpacity = cfg.opacity;
+      m.userData.phase = Math.random() * Math.PI * 2;
+      bloomLayers.push(m); group.add(m);
+    }
+
+    // Protuberanzen: 14 duenne Flammen-Planes — 1/3 kleiner als vorher
+    const flareTex = __sunFlareTex();
+    const flares = [];
+    const N = 14;
+    for (let i = 0; i < N; i++) {
+      const y = 1 - (i / (N - 1)) * 2;
+      const rad = Math.sqrt(1 - y * y);
+      const theta = i * Math.PI * (3 - Math.sqrt(5));
+      const dir = new THREE.Vector3(Math.cos(theta) * rad, y, Math.sin(theta) * rad).normalize();
+      const mat = new THREE.MeshBasicMaterial({
+        map: flareTex, color: 0xffcc78,
+        transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+      });
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
+      plane.userData.dir = dir;
+      plane.userData.phase = Math.random() * Math.PI * 2;
+      plane.userData.speed = 0.5 + Math.random() * 0.7;
+      plane.userData.twist = Math.random() * Math.PI;
+      plane.renderOrder = -2;
+      flares.push(plane); group.add(plane);
+    }
+
+    // --- Funken (sparks): viele kleine, schnell pulsierende Lichtpunkte ---
+    const sparkTex = __sunBloomTex();  // reuse radial-gradient texture
+    const sparks = [];
+    const NSPARK = 26;
+    for (let i = 0; i < NSPARK; i++) {
+      const mat = new THREE.SpriteMaterial({
+        map: sparkTex,
+        color: new THREE.Color().setHSL(0.1 + Math.random() * 0.05, 1, 0.7),
+        transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
+      });
+      const s = new THREE.Sprite(mat);
+      // Viel kleinere Funken (~1/4 der vorherigen Groesse)
+      const size = R * (0.04 + Math.random() * 0.06);
+      s.scale.set(size, size, 1);
+      s.userData.baseSize = size;
+      s.userData.life = Math.random();               // 0..1
+      s.userData.lifeSpeed = 0.6 + Math.random() * 1.2;  // Hz-ish
+      s.userData.dir = new THREE.Vector3(
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1
+      ).normalize();
+      s.userData.dist = 1.05 + Math.random() * 0.4;  // Abstand in R-Vielfachen
+      s.renderOrder = -1;
+      sparks.push(s); group.add(s);
+    }
+
+    // --- Eruptionen / Sonnenstuerme: grosse Bursts, expandieren + fade ---
+    // Sehr hell, satt in Orange-Rot-Gelb-Spektrum (HSL 0.00 Rot .. 0.13 Gelb)
+    const bursts = [];
+    const NBURST = 5;
+    for (let i = 0; i < NBURST; i++) {
+      const mat = new THREE.SpriteMaterial({
+        map: sparkTex,
+        color: new THREE.Color().setHSL(Math.random() * 0.13, 1, 0.75),
+        transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
+      });
+      const s = new THREE.Sprite(mat);
+      s.userData.maxSize = R * (1.2 + Math.random() * 0.8);
+      s.userData.life = Math.random();               // 0..1
+      s.userData.lifeSpeed = 0.15 + Math.random() * 0.2;
+      s.userData.dir = new THREE.Vector3(
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1
+      ).normalize();
+      s.renderOrder = -1;
+      bursts.push(s); group.add(s);
+    }
+
+    // --- Kleine Explosionen: Mini-Bursts zwischen Funken und grossen Eruptionen ---
+    // Haeufigere, schnellere Flashes auf der Oberflaeche — lebendige Mikro-Dynamik.
+    const miniBursts = [];
+    const NMINI = 14;
+    for (let i = 0; i < NMINI; i++) {
+      const mat = new THREE.SpriteMaterial({
+        map: sparkTex,
+        color: new THREE.Color().setHSL(Math.random() * 0.13, 1, 0.72),
+        transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
+      });
+      const s = new THREE.Sprite(mat);
+      s.userData.maxSize = R * (0.32 + Math.random() * 0.32);
+      s.userData.life = Math.random();
+      s.userData.lifeSpeed = 0.4 + Math.random() * 0.6;  // schneller als grosse Bursts
+      s.userData.dir = new THREE.Vector3(
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1
+      ).normalize();
+      s.renderOrder = -1;
+      miniBursts.push(s); group.add(s);
+    }
+
+    group.userData.isSun = true;
+    group.userData.core = core;
+    group.userData.chromo = chromo;
+    group.userData.bloomLayers = bloomLayers;
+    group.userData.flares = flares;
+    group.userData.sparks = sparks;
+    group.userData.bursts = bursts;
+    group.userData.miniBursts = miniBursts;
+    group.userData.baseR = R;
+    group.userData.nodeId = n.id;
+    group.userData.baseRadius = R;
+    return group;
+  }
+
   // Custom nodeThreeObject: Kugel mit alter-abhängiger Opacity + Label rechts daneben
   forceGraph3d.nodeThreeObjectExtend(false);
   forceGraph3d.nodeThreeObject(n => {
     if (!window.THREE) return null;
+    // --- Spezialfall Root: animierte Sonne ---
+    if (n.depth === 0) return createSunObject(n);
+
     const group = new THREE.Group();
-    const r = n.depth === 0 ? 10 : n.depth === 1 ? 5 : n.depth === 2 ? 3 : 1.8;
+    const r = n.depth === 1 ? 5 : n.depth === 2 ? 3 : 1.8;
     const af = typeof n._ageFactor === 'number' ? n._ageFactor : 0.6;
     // Opacity: 0.05 (sehr alt) .. 0.97 (neu), aktiv/Struktur = 0.97
     let opacity = 0.97;
@@ -1230,6 +1768,52 @@ function init3D() {
     });
     const sphere = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 24), mat);
     group.add(sphere);
+
+    // Glow-Halo fuer Hover (unsichtbar bis Hover) — additiv + grosser Radius
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: n.color, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(r * 1.9, 20, 20), glowMat);
+    glow.renderOrder = -1;
+    group.add(glow);
+
+    // "+"-Marker: eigene quadratische Textur (weiss mit schwarzem Outline),
+    // Sprite bleibt camera-facing und behaelt garantiert das Seitenverhaeltnis 1:1.
+    {
+      const plusMat = new THREE.SpriteMaterial({
+        map: __plusTex(), color: 0xffffff,
+        transparent: true, opacity: 0,
+        depthTest: false, depthWrite: false
+      });
+      const plus = new THREE.Sprite(plusMat);
+      // Groesse: quadratisch, skaliert an Knoten-Radius
+      const plusSize = r * 1.6;
+      plus.scale.set(plusSize, plusSize, 1);
+      plus.position.set(0, 0, 0);  // exakt im Knoten-Zentrum
+      plus.renderOrder = 50;
+      plus.visible = false;
+      plus.userData.baseSize = plusSize;
+      group.add(plus);
+      group.userData.plusSprite = plus;
+    }
+
+    // Referenzen fuer Hover-Animation
+    group.userData.nodeId = n.id;
+    group.userData.mainSphere = sphere;
+    group.userData.glowSphere = glow;
+    group.userData.baseOpacity = opacity;
+    group.userData.baseRadius = r;
+    // Spawn-Zeit fuer globalen Fade-In — jeder neu erzeugte Knoten startet
+    // unsichtbar und faded sinus-eased ein. Neue Kinder einer Expand-Aktion
+    // (__bubbleOut) starten zusaetzlich mit Scale 0 → 1 ("bubbeln" aus dem
+    // Parent heraus).
+    group.userData.spawnT = performance.now();
+    group.userData.bubbleOut = !!n.__bubbleOut;
+    sphere.material.opacity = 0;
+    if (n.__bubbleOut) {
+      group.scale.setScalar(0.01);
+    }
     // Root nie mit Label (auch in 3D)
     if (settings.showLabels && window.SpriteText && n.depth !== 0) {
       const baseSize = n.depth === 1 ? 4.8 : n.depth === 2 ? 3.2 : 2;
@@ -1248,9 +1832,16 @@ function init3D() {
       sprite.material.depthTest = false;
       sprite.material.transparent = true;
       // Opacity nach Alter: 0.05 (sehr alt) .. 0.97 (neu), Structure/Aktiv = 0.97
-      sprite.material.opacity = (n.status === 'thinking' || n.depth <= 1) ? 0.97 : (0.05 + af * 0.92);
+      // Minimum-Opacity 0.222 fuer Labels — auch aelteste Knoten bleiben deutlich lesbar.
+      sprite.material.opacity = (n.status === 'thinking' || n.depth <= 1) ? 0.97 : Math.max(0.222, 0.222 + af * 0.748);
       sprite.renderOrder = 10;
+      // Target-Opacity merken + initial auf 0 setzen (Fade-In im animLoop)
+      sprite.userData.targetOpacity = sprite.material.opacity;
+      sprite.material.opacity = 0;
       group.add(sprite);
+      // Referenzen fuer Hit-Testing von Labels (siehe findNearestNodeAtPx)
+      group.userData.labelSprite = sprite;
+      group.userData.labelOffset = labelOffset;
       // Label immer zentriert OBERHALB der Bubble in Kamera-UP-Richtung
       group.userData.updateLabelPos = (cam) => {
         const up = new THREE.Vector3();
@@ -1270,6 +1861,242 @@ function init3D() {
       if (obj.userData && obj.userData.updateLabelPos) obj.userData.updateLabelPos(cam);
     });
   });
+  // Unabhaengige rAF-Loop: Hover-Animation + "+"-Indikator + Sonnen-Animation.
+  // Laeuft auch nach Stillstand der Simulation.
+  const __TMPV = new THREE.Vector3();
+  const __TMPV2 = new THREE.Vector3();
+  const __TMPQ = new THREE.Quaternion();
+  const __TMPQ2 = new THREE.Quaternion();
+  const __UPAX = new THREE.Vector3(0, 1, 0);
+  let __lastFrameT = performance.now() * 0.001;
+  // Dauern fuer getweente Transitions (Sekunden) — 3.33x laenger fuer mehr Wirkung
+  const HOVER_DUR = 0.466;
+  const PLUS_DUR  = 0.400;
+  (function animLoop(){
+    const scene = forceGraph3d.scene && forceGraph3d.scene();
+    if (scene) {
+      const tNow = performance.now() * 0.001;
+      const dt = Math.min(0.08, Math.max(0, tNow - __lastFrameT));
+      __lastFrameT = tNow;
+      const t = tNow;
+      const hoveredId = window.__hoveredNodeId;
+      const hidden = window.__hasHiddenChildren || null;
+      scene.traverse(obj => {
+        const u = obj.userData; if (!u) return;
+        // --- HDR-Sonne animieren (Kern rotiert, Chromosphaere flimmert,
+        //     Bloom-Layer atmen, Protuberanzen flackern in Sinus) ---
+        if (u.isSun) {
+          const R = u.baseR;
+          // Kern: sehr langsame Rotation + mini Pulsation
+          if (u.core) {
+            u.core.rotation.y = t * 0.035;
+            u.core.rotation.x = Math.sin(t * 0.17) * 0.08;
+            const corePulse = 1 + Math.sin(t * 0.9) * 0.012;
+            u.core.scale.setScalar(corePulse);
+          }
+          // Chromosphaere: minimale Phasenschwankung, leichtes Dehnen
+          if (u.chromo) {
+            u.chromo.rotation.y = -t * 0.06;
+            u.chromo.material.opacity = 0.22 + (0.5 - 0.5 * Math.cos(t * 1.1)) * 0.14;
+            const s = 1 + Math.sin(t * 0.75) * 0.01;
+            u.chromo.scale.setScalar(s);
+          }
+          // Bloom-Layers: versetztes Atmen
+          u.bloomLayers && u.bloomLayers.forEach((s, i) => {
+            const ph = s.userData.phase;
+            const baseS = s.userData.baseScale;
+            const baseO = s.userData.baseOpacity;
+            const p = 0.5 - 0.5 * Math.cos(t * (0.35 + i * 0.12) + ph);  // sinus 0-1
+            const scl = R * baseS * (1 + p * 0.06);
+            s.scale.set(scl, scl, 1);
+            s.material.opacity = baseO * (0.82 + p * 0.35);
+          });
+          // Protuberanzen (1/3 kleiner): Flammenprofil, sinus-eased, verdreht
+          u.flares && u.flares.forEach(pl => {
+            const ph = pl.userData.phase;
+            const sp = pl.userData.speed;
+            const raw = 0.5 - 0.5 * Math.cos(t * sp + ph);  // 0..1 sinusweich
+            // Laenge & Breite um ca. 33% reduziert
+            const length = R * (0.47 + raw * 0.8);
+            const width  = R * (0.09 + raw * 0.12);
+            const dir = pl.userData.dir;
+            __TMPV.copy(dir).multiplyScalar(R * 0.93 + length * 0.5);
+            pl.position.copy(__TMPV);
+            __TMPQ.setFromUnitVectors(__UPAX, dir);
+            const twist = Math.sin(t * sp * 0.7 + pl.userData.twist) * 0.55;
+            __TMPQ2.setFromAxisAngle(dir, twist);
+            pl.quaternion.copy(__TMPQ2).multiply(__TMPQ);
+            pl.scale.set(width, length, 1);
+            pl.material.opacity = 0.22 + raw * 0.6;
+          });
+          // Funken: kurze, helle Lichtpunkte mit schnellem Lebenszyklus
+          u.sparks && u.sparks.forEach(s => {
+            s.userData.life += dt * s.userData.lifeSpeed;
+            if (s.userData.life >= 1) {
+              // Neu initialisieren an zufaelliger Position
+              s.userData.life = 0;
+              s.userData.dir.set(
+                Math.random() * 2 - 1,
+                Math.random() * 2 - 1,
+                Math.random() * 2 - 1
+              ).normalize();
+              s.userData.dist = 1.05 + Math.random() * 0.4;
+              s.userData.lifeSpeed = 0.6 + Math.random() * 1.2;
+              const size = R * (0.04 + Math.random() * 0.06);
+              s.userData.baseSize = size;
+              s.material.color.setHSL(0.1 + Math.random() * 0.05, 1, 0.72);
+            }
+            const L = s.userData.life;  // 0..1
+            // Parabel-Opacity (steigt, faellt)
+            const op = Math.sin(L * Math.PI);
+            s.material.opacity = op * 0.95;
+            // Ausdriftende Bewegung
+            const d = (1.02 + L * 0.3) * s.userData.dist * R;
+            __TMPV.copy(s.userData.dir).multiplyScalar(d);
+            s.position.copy(__TMPV);
+            const sz = s.userData.baseSize * (0.6 + op * 0.9);
+            s.scale.set(sz, sz, 1);
+          });
+          // Eruptionen: grosse Bursts — expandieren und verblassen
+          u.bursts && u.bursts.forEach(s => {
+            s.userData.life += dt * s.userData.lifeSpeed;
+            if (s.userData.life >= 1) {
+              s.userData.life = 0;
+              s.userData.dir.set(
+                Math.random() * 2 - 1,
+                Math.random() * 2 - 1,
+                Math.random() * 2 - 1
+              ).normalize();
+              s.userData.maxSize = R * (1.3 + Math.random() * 1.0);
+              s.userData.lifeSpeed = 0.15 + Math.random() * 0.22;
+              // Orange-Rot-Gelb: HSL-Hue 0.00 (Rot) .. 0.13 (Gelb),
+              // volle Saettigung, sehr helle Lightness fuer knallige Peaks.
+              s.material.color.setHSL(Math.random() * 0.13, 1, 0.78);
+            }
+            const L = s.userData.life;
+            // Ease-out cubic fuer Expansion, ease-in fuer Fade-out
+            const expand = easeSineOut(Math.min(1, L * 1.4));
+            const fade = L < 0.3 ? easeSineIn(L / 0.3) : (1 - easeSineInOut((L - 0.3) / 0.7));
+            const size = s.userData.maxSize * (0.2 + expand * 0.9);
+            s.scale.set(size, size, 1);
+            // Sehr hell: Peak ~2.4 (additives Blending → starker HDR-Flash)
+            s.material.opacity = fade * 2.4;
+            // Position nah an der Oberflaeche, driftet leicht nach aussen
+            const d = R * (1.0 + L * 0.25);
+            __TMPV.copy(s.userData.dir).multiplyScalar(d);
+            s.position.copy(__TMPV);
+          });
+          // Kleine Explosionen: schnelle Mini-Bursts auf der Oberflaeche
+          u.miniBursts && u.miniBursts.forEach(s => {
+            s.userData.life += dt * s.userData.lifeSpeed;
+            if (s.userData.life >= 1) {
+              s.userData.life = 0;
+              s.userData.dir.set(
+                Math.random() * 2 - 1,
+                Math.random() * 2 - 1,
+                Math.random() * 2 - 1
+              ).normalize();
+              s.userData.maxSize = R * (0.32 + Math.random() * 0.32);
+              s.userData.lifeSpeed = 0.4 + Math.random() * 0.6;
+              s.material.color.setHSL(Math.random() * 0.13, 1, 0.72);
+            }
+            const L = s.userData.life;
+            const expand = easeSineOut(Math.min(1, L * 1.6));
+            const fade = L < 0.25 ? easeSineIn(L / 0.25) : (1 - easeSineInOut((L - 0.25) / 0.75));
+            const size = s.userData.maxSize * (0.15 + expand * 0.95);
+            s.scale.set(size, size, 1);
+            // Hell, aber weniger als die grossen Bursts (Peak ~1.8)
+            s.material.opacity = fade * 1.8;
+            const d = R * (1.0 + L * 0.18);
+            __TMPV.copy(s.userData.dir).multiplyScalar(d);
+            s.position.copy(__TMPV);
+          });
+          return;  // Sonne hat kein Hover
+        }
+        // Label-Positionen immer an Kamera anpassen (Billboard oberhalb Bubble)
+        if (u.updateLabelPos) u.updateLabelPos(forceGraph3d.camera());
+        if (!u.mainSphere) return;
+        // --- Retract-Animation: Knoten fliegt ins Parent-Zentrum + schrumpft ---
+        // (Laeuft vor der regulaeren Hover/Spawn-Logik, um sie komplett zu uebersteuern.)
+        if (u.retracting) {
+          const prog = Math.min(1, (performance.now() - u.retractStartT) / 733);
+          const e = easeSineIn(prog);
+          const from = u.retractFrom, to = u.retractTo;
+          if (from && to) {
+            // Group-Position direkt setzen (force-graph's Sim-Position
+            // wuerde sonst zurueckueberschrieben — wir setzen aber ZUSAETZLICH
+            // fx/fy/fz am Sim-Knoten, damit es konsistent bleibt).
+            const simNode = forceGraph3d.graphData().nodes.find(nn => nn.id === u.nodeId);
+            const nx = from.x + (to.x - from.x) * e;
+            const ny = from.y + (to.y - from.y) * e;
+            const nz = from.z + (to.z - from.z) * e;
+            if (simNode) { simNode.fx = nx; simNode.fy = ny; simNode.fz = nz; }
+            obj.position.set(nx, ny, nz);
+          }
+          const shrink = 1 - e;
+          obj.scale.setScalar(Math.max(0.001, shrink));
+          // Opacity auch runter ziehen
+          u.mainSphere.material.opacity = (u.baseOpacity || 0.97) * shrink;
+          if (u.glowSphere) u.glowSphere.material.opacity = 0;
+          if (u.labelSprite) u.labelSprite.material.opacity = (u.labelSprite.userData.targetOpacity || 0.97) * shrink;
+          if (u.plusSprite) u.plusSprite.material.opacity = 0;
+          return;
+        }
+        // --- Globaler Fade-In: jeder frisch erzeugte Knoten blendet
+        //     sinus-eased ueber ~733ms ein. Multiplikativ auf alle Opacities.
+        const SPAWN_DUR = 733;  // ms
+        const spawnT = u.spawnT || 0;
+        const rawAge = (performance.now() - spawnT) / SPAWN_DUR;
+        const appear = easeSineInOut(Math.max(0, Math.min(1, rawAge)));
+        // --- Bubble-Out: neue Kinder wachsen sinus-eased von Scale 0 auf 1 ---
+        if (u.bubbleOut) {
+          const BUBBLE_DUR = 1066;  // ms
+          const bRaw = (performance.now() - spawnT) / BUBBLE_DUR;
+          const bScale = easeSineOut(Math.max(0, Math.min(1, bRaw)));
+          obj.scale.setScalar(Math.max(0.01, bScale));
+          if (bRaw >= 1) { u.bubbleOut = false; obj.scale.setScalar(1); }
+        }
+        // --- Hover: time-based sinus ease-in-out ---
+        const isHovered = hoveredId != null && u.nodeId === hoveredId;
+        u.hoverLin = u.hoverLin || 0;
+        const hTarget = isHovered ? 1 : 0;
+        const hStep = dt / HOVER_DUR;
+        if (u.hoverLin < hTarget)      u.hoverLin = Math.min(hTarget, u.hoverLin + hStep);
+        else if (u.hoverLin > hTarget) u.hoverLin = Math.max(hTarget, u.hoverLin - hStep);
+        const hEase = easeSineInOut(u.hoverLin);
+        const ms = u.mainSphere, gl = u.glowSphere;
+        const baseOp = u.baseOpacity || 0.97;
+        const scl = 1 + hEase * 0.35;
+        ms.scale.set(scl, scl, scl);
+        // Fade-In MULTIPLIKATIV auf Haupt-Sphaere/Glow/Label/Plus applizieren
+        ms.material.opacity = appear * (baseOp + hEase * Math.min(0.3, 1 - baseOp));
+        if (gl) gl.material.opacity = appear * hEase * 0.55;
+        if (u.labelSprite) {
+          const tgt = u.labelSprite.userData.targetOpacity || 0.97;
+          u.labelSprite.material.opacity = appear * tgt;
+        }
+        // --- "+"-Indikator: time-based sinus-eased Fade-In/Out ---
+        // WICHTIG: immer quadratisch (setScalar) damit nichts verzerrt,
+        //          position (0,0,0) haelt es im Knoten-Zentrum.
+        if (u.plusSprite) {
+          const want = hidden ? hidden.has(u.nodeId) : false;
+          u.plusLin = u.plusLin || 0;
+          const pTarget = want ? 1 : 0;
+          const pStep = dt / PLUS_DUR;
+          if (u.plusLin < pTarget)      u.plusLin = Math.min(pTarget, u.plusLin + pStep);
+          else if (u.plusLin > pTarget) u.plusLin = Math.max(pTarget, u.plusLin - pStep);
+          const pEase = easeSineInOut(u.plusLin);
+          u.plusSprite.material.opacity = appear * pEase;
+          u.plusSprite.visible = (appear * pEase) > 0.002;
+          const baseSize = u.plusSprite.userData.baseSize || (u.baseRadius * 1.6);
+          const ps = baseSize * (0.7 + pEase * 0.3);
+          u.plusSprite.scale.set(ps, ps, 1);
+          u.plusSprite.position.set(0, 0, 0);  // immer zentriert
+        }
+      });
+    }
+    requestAnimationFrame(animLoop);
+  })();
   // Standard-Orbit-Navigation (wie Blender/Figma/Three.js OrbitControls Default):
   //   LEFT  = Orbit / Rotate
   //   RIGHT = Pan / Move
@@ -1430,8 +2257,24 @@ function snap3DView(axis) {
   };
   forceGraph3d.cameraPosition(positions[axis] || positions.reset, { x: 0, y: 0, z: 0 }, 900);
 }
-function update3D() {
+// Position-Cache (ueber Rebuilds hinweg), damit eingeklappte Sub-Knoten
+// beim Wieder-Ausklappen an ihrer letzten bekannten Position erscheinen.
+window.__nodePosCache = window.__nodePosCache || new Map();
+
+function update3D(opts) {
   if (!forceGraph3d || !root) return;
+  const fromToggle = opts && opts.fromToggle;
+
+  // Aktuelle Positionen ALLER lebenden Knoten in den Cache schreiben,
+  // bevor graphData ersetzt wird. Ermoeglicht exakte Restauration nach Toggle.
+  try {
+    const cur = forceGraph3d.graphData();
+    cur.nodes.forEach(n => {
+      if (typeof n.x === 'number') {
+        window.__nodePosCache.set(n.id, { x: n.x, y: n.y, z: n.z || 0 });
+      }
+    });
+  } catch (_) {}
   const tss = root.descendants().map(n => n.data._ts).filter(x => x);
   const tmax = tss.length ? Math.max(...tss) : 0;
   const tmin = tss.length ? Math.min(...tss) : 0;
@@ -1487,6 +2330,53 @@ function update3D() {
       ageFactor: ageF(childTs)
     });
   });
+
+  // Sanfte Positionierung:
+  // — Bestehende Knoten starten an ihrer zuletzt bekannten Position
+  //   (aus Cache), damit sie nicht springen. Physik darf sie dann
+  //   organisch nachjustieren.
+  // — Neue Knoten spawnen an ihrer Parent-Position + kleinem Jitter, sodass
+  //   sie sichtbar aus dem Parent herauswachsen.
+  // — Kein fx/fy/fz — der Force-Graph simuliert frei, so dass das Layout
+  //   beim Ausklappen neuer Aeste organisch atmet.
+  const parentOf = new Map();
+  links.forEach(l => parentOf.set(l.target, l.source));
+  const resolveSeed = (id, depth = 0) => {
+    if (depth > 20) return null;
+    const c = window.__nodePosCache.get(id);
+    if (c) return c;
+    const p = parentOf.get(id);
+    return p ? resolveSeed(p, depth + 1) : null;
+  };
+  // Welche IDs waren im vorherigen Graph? → unterscheidet "Knoten bleibt"
+  // von "Knoten wurde frisch hinzugefuegt / re-expandet".
+  const prevIds = new Set();
+  try {
+    const prev = forceGraph3d.graphData();
+    prev.nodes.forEach(p => prevIds.add(p.id));
+  } catch (_) {}
+
+  nodes.forEach(n => {
+    // Vorheriges Freeze zuruecksetzen (falls aus frueherem Rebuild noch gesetzt)
+    n.fx = null; n.fy = null; n.fz = null;
+    const cached = window.__nodePosCache.get(n.id);
+    const wasInGraph = prevIds.has(n.id);
+    if (cached && wasInGraph) {
+      // Bestand im Graph → exakt an letzter Position weitermachen, kein Sprung.
+      n.x = cached.x; n.y = cached.y; n.z = cached.z;
+    } else {
+      // Neu im Graph (truly new ODER re-expand nach Collapse) → aus Parent
+      // heraus bubbeln. Seed exakt an Parent-Position, Scale-Tween 0 → 1.
+      const seed = resolveSeed(n.id);
+      if (seed) {
+        n.x = seed.x;
+        n.y = seed.y;
+        n.z = seed.z;
+        n.vx = 0; n.vy = 0; n.vz = 0;
+        n.__bubbleOut = true;
+      }
+    }
+  });
   forceGraph3d.graphData({ nodes, links });
 }
 
@@ -1497,9 +2387,30 @@ rebuild();
 setInterval(poll, 500);
 poll();
 
+// Canvas / 3D-Graph-Groesse bei Browser-Resize mitfuehren (debounced)
+let __resizeRaf = null;
+function __applyResize() {
+  __resizeRaf = null;
+  const W = window.innerWidth, H = window.innerHeight;
+  if (sim) sim.force("center", d3.forceCenter(W / 2, H / 2)).alpha(0.3).restart();
+  if (forceGraph3d) {
+    if (forceGraph3d.width) forceGraph3d.width(W);
+    if (forceGraph3d.height) forceGraph3d.height(H);
+    const renderer = forceGraph3d.renderer && forceGraph3d.renderer();
+    if (renderer && renderer.setSize) renderer.setSize(W, H, false);
+    const cam = forceGraph3d.camera && forceGraph3d.camera();
+    if (cam && 'aspect' in cam) { cam.aspect = W / H; cam.updateProjectionMatrix(); }
+    if (forceGraph3d.refresh) forceGraph3d.refresh();
+  }
+  const svg = document.getElementById('map');
+  if (svg) { svg.setAttribute('width', W); svg.setAttribute('height', H); }
+}
 window.addEventListener("resize", () => {
-  if (sim) sim.force("center", d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2)).alpha(0.3).restart();
+  if (__resizeRaf) return;
+  __resizeRaf = requestAnimationFrame(__applyResize);
 });
+// Auch initial einmal anwenden falls Layout-Shifts beim Laden passieren
+window.addEventListener('load', __applyResize);
 </script>
 </body>
 </html>

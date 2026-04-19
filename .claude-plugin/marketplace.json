@@ -11,16 +11,26 @@
   "plugins": [
     {
       "name": "ai-brainmap",
-      "description": "Live Context Visualizer for Claude Code — turns Claude's reasoning into an interactive 2D/3D mindmap (D3.js + local Python server).",
+      "description": "Live Context Visualizer for Claude Code — turns Claude's reasoning into an interactive 2D/3D mindmap with HDR sun root, smooth hover, screen-space picking and additive tree growth. Runs fully local (Python + Three.js + D3).",
       "source": "./plugins/ai-brainmap",
       "category": "visualization",
-      "keywords": ["mindmap", "visualization", "context", "d3", "observability"],
+      "keywords": [
+        "mindmap",
+        "visualization",
+        "context",
+        "observability",
+        "three.js",
+        "force-graph",
+        "debugging",
+        "transparency"
+      ],
       "author": {
         "name": "Austro Intelligence",
         "url": "https://austro-intelligence.at"
       },
       "homepage": "https://github.com/Austro-Intelligence/ai-brainmap",
-      "license": "MIT"
+      "license": "MIT",
+      "version": "0.5.0"
     }
   ]
 }
