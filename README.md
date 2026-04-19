@@ -1,3 +1,6 @@
+
+*********** ANIMATED GIF (Placeholder) *************
+
 # ai-brainmap
 
 ## Live Context Visualizer for Claude
