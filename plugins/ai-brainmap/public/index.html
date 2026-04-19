@@ -883,9 +883,9 @@ function rebuild(opts) {
   const densityScale = Math.max(0.8, Math.min(1.2, Math.sqrt(50 / Math.max(30, nCount))));
   if (!sim) {
     sim = d3.forceSimulation(root.descendants())
-      .velocityDecay(0.90)      // sehr starke Dämpfung — smoothe, langsame Bewegungen
-      .alphaDecay(0.012)        // langes, sanftes Abklingen statt schneller Sprung
-      .alphaMin(0.001)
+      .velocityDecay(0.72)      // Daempfung unveraendert
+      .alphaDecay(0.012)        // 3.33x laenger bis Stillstand
+      .alphaMin(0.002)
       .force("link", d3.forceLink(root.links()).id(keyOf)
         .distance(d => (d.source.depth === 0 ? 190 : d.source.depth === 1 ? 70 : 45) * densityScale)
         .strength(d => d.source.depth === 1 ? 1.1 : d.source.depth >= 2 ? 0.9 : 0.7))
@@ -902,10 +902,10 @@ function rebuild(opts) {
     sim.force("collide").radius(d => (d.depth === 0 ? 90 : d.depth === 1 ? 55 : d.depth === 2 ? 40 : 28) * densityScale);
     sim.nodes(root.descendants());
     sim.force("link").links(root.links());
-    // Beim Toggle (Sub-Klappen): Tree komplett stehen lassen — alpha 0.
-    // Sonst (neuer Gedanke aus Hook): sanftes Reheat.
-    if (opts && opts.fromToggle) sim.alpha(0);
-    else sim.alpha(0.06).restart();
+    // Reheat: beim Toggle mit kraeftigerem Impuls damit neue Sub-Knoten
+    // schnell ihre Position finden. Bei neuen Thoughts sanfter.
+    if (opts && opts.fromToggle) sim.alpha(0.25).restart();
+    else sim.alpha(0.08).restart();
   }
 
   // Auto-Fit beim ersten Rebuild (nach Settle der Simulation)
@@ -942,22 +942,69 @@ function nodeClass(d) {
   return parts.join(" ");
 }
 
+// Retract-Animation fuer Knoten die gleich verschwinden: sie fliegen in
+// das Parent-Zentrum und schrumpfen dabei. Die tatsaechliche Entfernung
+// aus dem Graph erfolgt erst NACH der Animation.
+const RETRACT_DUR = 733;  // ms
+function startRetractAnimation(rootD) {
+  if (!forceGraph3d || !window.THREE) return;
+  const scene = forceGraph3d.scene && forceGraph3d.scene();
+  if (!scene) return;
+  const parentKey = keyOf(rootD);
+  // Parent-Weltposition ermitteln
+  let parentGroup = null;
+  scene.traverse(o => { if (!parentGroup && o.userData && o.userData.nodeId === parentKey) parentGroup = o; });
+  if (!parentGroup) return;
+  const pwp = new THREE.Vector3();
+  parentGroup.getWorldPosition(pwp);
+  // IDs aller Nachkommen sammeln (die gleich hidden werden)
+  const toHide = new Set();
+  (function collect(n){ if(!n.children) return; for(const c of n.children){ toHide.add(keyOf(c)); collect(c); } })(rootD);
+  // Deren Gruppen fuer Retract markieren
+  const now = performance.now();
+  scene.traverse(obj => {
+    if (!obj.userData || !obj.userData.nodeId) return;
+    if (!toHide.has(obj.userData.nodeId)) return;
+    obj.userData.retracting = true;
+    obj.userData.retractStartT = now;
+    obj.userData.retractFrom = { x: obj.position.x, y: obj.position.y, z: obj.position.z };
+    obj.userData.retractTo = { x: pwp.x, y: pwp.y, z: pwp.z };
+  });
+}
+
 function toggleCollapse(d) {
   const k = keyOf(d);
-  // Depth-1-Hauptäste (Werkzeuge, Themen, Agenten, Web): falls sie Theme-Sub-Knoten
-  // haben, Klick togglet alle Sub-Themen gleichzeitig (alle einblenden / alle ausblenden).
-  if (d.depth === 1 && d.children && d.children.length > 1) {
-    const anyExpanded = d.children.some(c => !settings.collapsed[keyOf(c)]);
-    for (const c of d.children) {
-      const ck = keyOf(c);
-      if (anyExpanded) settings.collapsed[ck] = true;
-      else delete settings.collapsed[ck];
+  // Entscheiden: ist der Klick insgesamt eine Collapse-Aktion (→ Retract
+  // zeigen) oder eine Expand-Aktion (→ sofort rebuilden, Bubble-Out im rAF)?
+  const isD1Main = d.depth === 1 && d.children && d.children.length > 1;
+  const willCollapse = isD1Main
+    ? d.children.some(c => !settings.collapsed[keyOf(c)])
+    : !settings.collapsed[k];
+
+  const applyToggle = () => {
+    if (isD1Main) {
+      const anyExpanded = d.children.some(c => !settings.collapsed[keyOf(c)]);
+      for (const c of d.children) {
+        const ck = keyOf(c);
+        if (anyExpanded) settings.collapsed[ck] = true;
+        else delete settings.collapsed[ck];
+      }
+    } else {
+      if (settings.collapsed[k]) delete settings.collapsed[k];
+      else settings.collapsed[k] = true;
     }
+    saveSettings();
+    rebuild({ fromToggle: true });
+  };
+
+  if (willCollapse) {
+    // Kinder schnuppern zuerst in den Parent zurueck, dann erst wegraeumen
+    startRetractAnimation(d);
+    setTimeout(applyToggle, RETRACT_DUR);
   } else {
-    if (settings.collapsed[k]) delete settings.collapsed[k];
-    else settings.collapsed[k] = true;
+    // Expand: sofort bauen — neue Kinder spawnen am Parent + Bubble-Out-Scale
+    applyToggle();
   }
-  saveSettings(); rebuild({ fromToggle: true });
 }
 
 function tick() {
@@ -1132,54 +1179,9 @@ function applySearch() {
       || (d.source.data.name || "").toLowerCase().includes(q));
     this.classList.toggle('search-dim', active && !hit);
   });
-  // 3D-Match: Opacity der Sphere-Materials anpassen
-  if (forceGraph3d && window.THREE) {
-    const scene = forceGraph3d.scene();
-    if (scene) {
-      const data = forceGraph3d.graphData();
-      const matchIds = new Set();
-      if (active) {
-        data.nodes.forEach(n => {
-          if ((n.name || "").toLowerCase().includes(q)) matchIds.add(n.id);
-        });
-        if (!settings.threeD) {} else hits = matchIds.size;  // use 3D hits if 2D hidden
-      }
-      // Nodes: traverse graph's node-objects
-      data.nodes.forEach(n => {
-        const obj = n.__threeObj;
-        if (!obj) return;
-        obj.traverse(child => {
-          if (child.material && child.material.opacity !== undefined) {
-            if (!active) {
-              // reset: restore age-based opacity on spheres
-              if (child.geometry && child.geometry.type === 'SphereGeometry') {
-                const af = typeof n._ageFactor === 'number' ? n._ageFactor : 0.6;
-                child.material.opacity = (n.status !== 'thinking' && n.depth > 1) ? 0.05 + af * 0.92 : 0.97;
-              } else {
-                child.material.opacity = 0.97;
-              }
-            } else {
-              child.material.opacity = matchIds.has(n.id) ? 1 : 0.08;
-            }
-            child.material.transparent = true;
-          }
-        });
-      });
-      // Links: dim non-matches
-      data.links.forEach(l => {
-        const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-        const dstId = typeof l.target === 'object' ? l.target.id : l.target;
-        const hit = !active || matchIds.has(srcId) || matchIds.has(dstId);
-        if (l.__lineObj && l.__lineObj.material) {
-          l.__lineObj.material.opacity = hit ? 0.3 : 0.03;
-          l.__lineObj.material.transparent = true;
-        }
-      });
-    }
-  }
-  searchHits.textContent = active ? (hits + ' Treffer') : '';
-
-  // Aktuelle Treffer-IDs merken, damit der Fokus-Zoom sie filtern kann.
+  // Treffer-IDs fuer den Fokus-Zoom merken (Pfad-Set bleibt nur als
+  // Datenbasis fuer das Heranzoomen auf die Trefferregion — keine
+  // visuellen Dim-Effekte mehr auf Knoten oder Links).
   if (forceGraph3d) {
     const data = forceGraph3d.graphData();
     const ids = new Set();
@@ -1187,22 +1189,49 @@ function applySearch() {
       data.nodes.forEach(n => {
         if ((n.name || "").toLowerCase().includes(q)) ids.add(n.id);
       });
+      hits = ids.size;
     }
     window.__searchMatchIds = ids;
+    window.__searchPathIds = new Set();  // leer → keine Pfad-Filterung mehr
   }
+  searchHits.textContent = active ? (hits + ' Treffer') : '';
 }
 
-// Fokus-Zoom: legt die Bounding-Box aller Treffer in den Viewport.
-// Bei leerer Suche -> Full-Auto-Fit (alle Knoten).
+// Fokus-Zoom: nutzt die gleiche orbitale Kamerafahrt wie focusNodeById
+// (Klick im Aktivitaetslog). Fliegt auf den Treffer-Centroiden, waehlt
+// Distanz passend zur Treffer-BBox. Bei leerer Suche -> Full-Auto-Fit.
 function zoomToSearch() {
-  if (!forceGraph3d || !forceGraph3d.zoomToFit) return;
+  if (!forceGraph3d) return;
   const ids = window.__searchMatchIds;
-  const pad = settings.threeD ? 60 : 80;
-  if (ids && ids.size > 0) {
-    forceGraph3d.zoomToFit(600, pad, n => ids.has(n.id));
-  } else {
-    forceGraph3d.zoomToFit(600, pad);
+  if (!ids || ids.size === 0) {
+    if (forceGraph3d.zoomToFit) forceGraph3d.zoomToFit(1066, 80);
+    return;
   }
+  const data = forceGraph3d.graphData();
+  const matches = data.nodes.filter(n => ids.has(n.id) && typeof n.x === 'number');
+  if (matches.length === 0) return;
+
+  // Centroid + maximale Distanz vom Centroid (= BBox-Radius)
+  let cx = 0, cy = 0, cz = 0;
+  matches.forEach(n => { cx += n.x; cy += n.y; cz += (n.z || 0); });
+  cx /= matches.length; cy /= matches.length; cz /= matches.length;
+  let maxDist = 0;
+  matches.forEach(n => {
+    const d = Math.hypot(n.x - cx, n.y - cy, (n.z || 0) - cz);
+    if (d > maxDist) maxDist = d;
+  });
+
+  // Kamera-Distanz: Mindestens 140 (wie focusNodeById fuer Single-Node),
+  // skaliert mit BBox-Radius fuer Multi-Match
+  const distance = Math.max(140, maxDist * 2.4 + 90);
+  const len = Math.hypot(cx || 0.01, cy || 0.01, cz || 0.01);
+  const distRatio = 1 + distance / Math.max(len, 10);
+
+  forceGraph3d.cameraPosition(
+    { x: cx * distRatio, y: cy * distRatio, z: cz * distRatio },
+    { x: cx, y: cy, z: cz },
+    1000
+  );
 }
 
 if (searchInput) {
@@ -1220,7 +1249,7 @@ function doAutoFit() {
   if (!forceGraph3d || !forceGraph3d.zoomToFit) { autoFit(); return; }
   // Warte bis Simulation settled bevor fit (sonst kann bbox noch 0 sein)
   const pad = settings.threeD ? 80 : 110;
-  forceGraph3d.zoomToFit(900, pad);
+  forceGraph3d.zoomToFit(1665, pad);
   // In 2D: zusätzlich Kamera auf Z-Achse zwingen (nach zoomToFit kann sich x/y verschieben)
   if (!settings.threeD) {
     setTimeout(() => {
@@ -1250,13 +1279,13 @@ function init3D() {
   forceGraph3d
     .backgroundColor(settings.lightMode ? '#eaedf3' : '#070b10')
     .nodeResolution(24)
-    // Smoothere Tree-Refresh-Animation: langsames Abklingen, starke Daempfung,
-    // keine abrupten Sprungbewegungen beim Hinzufuegen neuer Knoten.
-    .d3VelocityDecay(0.90)
+    // Physik 3.33x laenger: Simulation kuehlt deutlich langsamer ab,
+    // Knoten-Bewegungen wirken ausgedehnter und cineastischer.
+    .d3VelocityDecay(0.72)
     .d3AlphaDecay(0.012)
-    .d3AlphaMin(0.001)
-    .warmupTicks(30)
-    .cooldownTime(20000)
+    .d3AlphaMin(0.002)
+    .warmupTicks(20)
+    .cooldownTime(13320)
     .nodeLabel(n => `<div class="graph-tooltip" style="color:${n.color};background:rgba(15,20,25,0.92);border:1px solid ${n.color}40;font-weight:600">${escapeHtml(n.name)}</div>`)
     .linkColor(l => l.color || '#555')
     .linkOpacity(0.35)
@@ -1287,8 +1316,20 @@ function init3D() {
     const d3Node = root.descendants().find(x => keyOf(x) === n.id);
     if (!d3Node) return;
     if (d3Node.depth === 0) {
-      // Sonne: gesamten Baum expandieren (alle Collapsed-Flags loeschen)
-      settings.collapsed = {};
+      // Sonne: Global-Toggle zwischen vollstaendig expandiert und komplett kollabiert.
+      // Wenn irgendwas collapsed ist → alle expanden. Sonst → alle (Struktur-)Knoten
+      // mit Kindern zuklappen.
+      const hasAnyCollapsed = Object.keys(settings.collapsed).length > 0;
+      if (hasAnyCollapsed) {
+        settings.collapsed = {};
+      } else {
+        settings.collapsed = {};
+        root.descendants().forEach(x => {
+          if (x.depth > 0 && x.children && x.children.length > 0) {
+            settings.collapsed[keyOf(x)] = true;
+          }
+        });
+      }
       saveSettings();
       rebuild({ fromToggle: true });
       closePanel();
@@ -1763,6 +1804,16 @@ function init3D() {
     group.userData.glowSphere = glow;
     group.userData.baseOpacity = opacity;
     group.userData.baseRadius = r;
+    // Spawn-Zeit fuer globalen Fade-In — jeder neu erzeugte Knoten startet
+    // unsichtbar und faded sinus-eased ein. Neue Kinder einer Expand-Aktion
+    // (__bubbleOut) starten zusaetzlich mit Scale 0 → 1 ("bubbeln" aus dem
+    // Parent heraus).
+    group.userData.spawnT = performance.now();
+    group.userData.bubbleOut = !!n.__bubbleOut;
+    sphere.material.opacity = 0;
+    if (n.__bubbleOut) {
+      group.scale.setScalar(0.01);
+    }
     // Root nie mit Label (auch in 3D)
     if (settings.showLabels && window.SpriteText && n.depth !== 0) {
       const baseSize = n.depth === 1 ? 4.8 : n.depth === 2 ? 3.2 : 2;
@@ -1781,8 +1832,12 @@ function init3D() {
       sprite.material.depthTest = false;
       sprite.material.transparent = true;
       // Opacity nach Alter: 0.05 (sehr alt) .. 0.97 (neu), Structure/Aktiv = 0.97
-      sprite.material.opacity = (n.status === 'thinking' || n.depth <= 1) ? 0.97 : (0.05 + af * 0.92);
+      // Minimum-Opacity 0.222 fuer Labels — auch aelteste Knoten bleiben deutlich lesbar.
+      sprite.material.opacity = (n.status === 'thinking' || n.depth <= 1) ? 0.97 : Math.max(0.222, 0.222 + af * 0.748);
       sprite.renderOrder = 10;
+      // Target-Opacity merken + initial auf 0 setzen (Fade-In im animLoop)
+      sprite.userData.targetOpacity = sprite.material.opacity;
+      sprite.material.opacity = 0;
       group.add(sprite);
       // Referenzen fuer Hit-Testing von Labels (siehe findNearestNodeAtPx)
       group.userData.labelSprite = sprite;
@@ -1814,9 +1869,9 @@ function init3D() {
   const __TMPQ2 = new THREE.Quaternion();
   const __UPAX = new THREE.Vector3(0, 1, 0);
   let __lastFrameT = performance.now() * 0.001;
-  // Dauern fuer getweente Transitions (Sekunden)
-  const HOVER_DUR = 0.28;
-  const PLUS_DUR  = 0.22;
+  // Dauern fuer getweente Transitions (Sekunden) — 3.33x laenger fuer mehr Wirkung
+  const HOVER_DUR = 0.466;
+  const PLUS_DUR  = 0.400;
   (function animLoop(){
     const scene = forceGraph3d.scene && forceGraph3d.scene();
     if (scene) {
@@ -1961,6 +2016,46 @@ function init3D() {
         // Label-Positionen immer an Kamera anpassen (Billboard oberhalb Bubble)
         if (u.updateLabelPos) u.updateLabelPos(forceGraph3d.camera());
         if (!u.mainSphere) return;
+        // --- Retract-Animation: Knoten fliegt ins Parent-Zentrum + schrumpft ---
+        // (Laeuft vor der regulaeren Hover/Spawn-Logik, um sie komplett zu uebersteuern.)
+        if (u.retracting) {
+          const prog = Math.min(1, (performance.now() - u.retractStartT) / 733);
+          const e = easeSineIn(prog);
+          const from = u.retractFrom, to = u.retractTo;
+          if (from && to) {
+            // Group-Position direkt setzen (force-graph's Sim-Position
+            // wuerde sonst zurueckueberschrieben — wir setzen aber ZUSAETZLICH
+            // fx/fy/fz am Sim-Knoten, damit es konsistent bleibt).
+            const simNode = forceGraph3d.graphData().nodes.find(nn => nn.id === u.nodeId);
+            const nx = from.x + (to.x - from.x) * e;
+            const ny = from.y + (to.y - from.y) * e;
+            const nz = from.z + (to.z - from.z) * e;
+            if (simNode) { simNode.fx = nx; simNode.fy = ny; simNode.fz = nz; }
+            obj.position.set(nx, ny, nz);
+          }
+          const shrink = 1 - e;
+          obj.scale.setScalar(Math.max(0.001, shrink));
+          // Opacity auch runter ziehen
+          u.mainSphere.material.opacity = (u.baseOpacity || 0.97) * shrink;
+          if (u.glowSphere) u.glowSphere.material.opacity = 0;
+          if (u.labelSprite) u.labelSprite.material.opacity = (u.labelSprite.userData.targetOpacity || 0.97) * shrink;
+          if (u.plusSprite) u.plusSprite.material.opacity = 0;
+          return;
+        }
+        // --- Globaler Fade-In: jeder frisch erzeugte Knoten blendet
+        //     sinus-eased ueber ~733ms ein. Multiplikativ auf alle Opacities.
+        const SPAWN_DUR = 733;  // ms
+        const spawnT = u.spawnT || 0;
+        const rawAge = (performance.now() - spawnT) / SPAWN_DUR;
+        const appear = easeSineInOut(Math.max(0, Math.min(1, rawAge)));
+        // --- Bubble-Out: neue Kinder wachsen sinus-eased von Scale 0 auf 1 ---
+        if (u.bubbleOut) {
+          const BUBBLE_DUR = 1066;  // ms
+          const bRaw = (performance.now() - spawnT) / BUBBLE_DUR;
+          const bScale = easeSineOut(Math.max(0, Math.min(1, bRaw)));
+          obj.scale.setScalar(Math.max(0.01, bScale));
+          if (bRaw >= 1) { u.bubbleOut = false; obj.scale.setScalar(1); }
+        }
         // --- Hover: time-based sinus ease-in-out ---
         const isHovered = hoveredId != null && u.nodeId === hoveredId;
         u.hoverLin = u.hoverLin || 0;
@@ -1973,8 +2068,13 @@ function init3D() {
         const baseOp = u.baseOpacity || 0.97;
         const scl = 1 + hEase * 0.35;
         ms.scale.set(scl, scl, scl);
-        ms.material.opacity = baseOp + hEase * Math.min(0.3, 1 - baseOp);
-        if (gl) gl.material.opacity = hEase * 0.55;
+        // Fade-In MULTIPLIKATIV auf Haupt-Sphaere/Glow/Label/Plus applizieren
+        ms.material.opacity = appear * (baseOp + hEase * Math.min(0.3, 1 - baseOp));
+        if (gl) gl.material.opacity = appear * hEase * 0.55;
+        if (u.labelSprite) {
+          const tgt = u.labelSprite.userData.targetOpacity || 0.97;
+          u.labelSprite.material.opacity = appear * tgt;
+        }
         // --- "+"-Indikator: time-based sinus-eased Fade-In/Out ---
         // WICHTIG: immer quadratisch (setScalar) damit nichts verzerrt,
         //          position (0,0,0) haelt es im Knoten-Zentrum.
@@ -1986,9 +2086,8 @@ function init3D() {
           if (u.plusLin < pTarget)      u.plusLin = Math.min(pTarget, u.plusLin + pStep);
           else if (u.plusLin > pTarget) u.plusLin = Math.max(pTarget, u.plusLin - pStep);
           const pEase = easeSineInOut(u.plusLin);
-          u.plusSprite.material.opacity = pEase;
-          u.plusSprite.visible = pEase > 0.002;
-          // Quadratisch! (nie unterschiedliche x/y Scale)
+          u.plusSprite.material.opacity = appear * pEase;
+          u.plusSprite.visible = (appear * pEase) > 0.002;
           const baseSize = u.plusSprite.userData.baseSize || (u.baseRadius * 1.6);
           const ps = baseSize * (0.7 + pEase * 0.3);
           u.plusSprite.scale.set(ps, ps, 1);
@@ -2232,14 +2331,14 @@ function update3D(opts) {
     });
   });
 
-  // Additiver Tree-Aufbau — egal ob Toggle oder neuer Thought.
-  // — Bestehende Knoten (im Cache): bleiben exakt wo sie sind (frozen
-  //   via fx/fy/fz). Der Baum bewegt sich NICHT.
-  // — Neue Knoten (nicht im Cache): spawnen an Parent-Position + Jitter und
-  //   fliessen organisch in ihre Zielposition. Kein Freeze — Physik wirkt.
-  //   Sobald sie auspendeln, werden sie beim naechsten Rebuild zu Cache-
-  //   Eintraegen und damit ebenfalls fest — so "wachsen" neue Aeste aus dem
-  //   Baum und bleiben dann dauerhaft stehen.
+  // Sanfte Positionierung:
+  // — Bestehende Knoten starten an ihrer zuletzt bekannten Position
+  //   (aus Cache), damit sie nicht springen. Physik darf sie dann
+  //   organisch nachjustieren.
+  // — Neue Knoten spawnen an ihrer Parent-Position + kleinem Jitter, sodass
+  //   sie sichtbar aus dem Parent herauswachsen.
+  // — Kein fx/fy/fz — der Force-Graph simuliert frei, so dass das Layout
+  //   beim Ausklappen neuer Aeste organisch atmet.
   const parentOf = new Map();
   links.forEach(l => parentOf.set(l.target, l.source));
   const resolveSeed = (id, depth = 0) => {
@@ -2249,20 +2348,32 @@ function update3D(opts) {
     const p = parentOf.get(id);
     return p ? resolveSeed(p, depth + 1) : null;
   };
+  // Welche IDs waren im vorherigen Graph? → unterscheidet "Knoten bleibt"
+  // von "Knoten wurde frisch hinzugefuegt / re-expandet".
+  const prevIds = new Set();
+  try {
+    const prev = forceGraph3d.graphData();
+    prev.nodes.forEach(p => prevIds.add(p.id));
+  } catch (_) {}
+
   nodes.forEach(n => {
+    // Vorheriges Freeze zuruecksetzen (falls aus frueherem Rebuild noch gesetzt)
+    n.fx = null; n.fy = null; n.fz = null;
     const cached = window.__nodePosCache.get(n.id);
-    if (cached) {
+    const wasInGraph = prevIds.has(n.id);
+    if (cached && wasInGraph) {
+      // Bestand im Graph → exakt an letzter Position weitermachen, kein Sprung.
       n.x = cached.x; n.y = cached.y; n.z = cached.z;
-      n.fx = cached.x; n.fy = cached.y; n.fz = cached.z;
     } else {
+      // Neu im Graph (truly new ODER re-expand nach Collapse) → aus Parent
+      // heraus bubbeln. Seed exakt an Parent-Position, Scale-Tween 0 → 1.
       const seed = resolveSeed(n.id);
       if (seed) {
-        const jitter = () => (Math.random() - 0.5) * 4;
-        n.x = seed.x + jitter();
-        n.y = seed.y + jitter();
-        n.z = seed.z + jitter();
+        n.x = seed.x;
+        n.y = seed.y;
+        n.z = seed.z;
         n.vx = 0; n.vy = 0; n.vz = 0;
-        // KEIN fx/fy/fz → Physik wirkt nur auf diesen neuen Knoten
+        n.__bubbleOut = true;
       }
     }
   });

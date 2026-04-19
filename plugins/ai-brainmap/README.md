@@ -11,14 +11,16 @@ Claude works.
 - **Screen-space node picker** (26 px pixel radius, label-aware) — reliable
   clicks even on the tiniest leaves
 - **Hover highlight** with camera-facing glow + scale ease
+- **Bubble-out & retract animations** on expand / collapse — children pop
+  out of and suck back into their parent with sine-eased timing
 - **"+" marker** inside collapsed structure nodes, square canvas texture
   (white fill, black outline), sine-eased fade
-- **Additive tree growth** via position cache — existing nodes stay put
-  forever, new nodes flow organically out of their parent
-- **Search-to-zoom** — every keystroke re-fits the viewport onto the BBox of
-  current hits via `forceGraph3d.zoomToFit`
+- **Additive tree growth** via position cache — existing positions carry
+  over between rebuilds, new nodes flow organically out of their parent
+- **Cineastic search zoom** — every keystroke orbits the camera onto the
+  centroid of the current hits with distance scaled to the hit BBox
 - **Bucket-colored sub-trees** — Werkzeuge yellow / Web turquoise / Agenten purple
-- **Click the sun** to expand the entire tree
+- **Click the sun** to toggle the entire tree (expand all / collapse all)
 
 ## Install
 

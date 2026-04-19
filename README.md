@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-blueviolet)](https://docs.anthropic.com/claude-code)
 [![Made in Austria](https://img.shields.io/badge/Made%20in-Austria-red)](https://austro-intelligence.at)
-[![Version](https://img.shields.io/badge/version-0.4.0-green)](./plugins/ai-brainmap/.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.5.0-green)](./plugins/ai-brainmap/.claude-plugin/plugin.json)
 
 ## Live Context Visualizer for Claude Code
 
@@ -28,16 +28,19 @@ black boxes.
 - 🎯 **Rock-solid node picking** — screen-space picker with 26 px radius
   works even on the tiniest leaves; labels are click-targetable too
 - ✨ **Smooth hover** — camera-facing glow halo, scale + opacity ease
+- 🎬 **Bubble-out & retract animations** — children pop out of their parent
+  on expand and suck back into it on collapse, with sine-eased timing
 - ➕ **Collapsed-branch marker** — crisp square "+" glyph inside nodes with
   hidden children, sine-eased fade-in/out
-- 🌱 **Additive tree growth** — nodes that found their place stay there
-  forever; new thoughts spawn at their parent and flow organically outward
-  while the rest of the tree never moves
-- 🔍 **Search-to-zoom** — every keystroke re-fits the viewport onto the
-  bounding box of current search hits
+- 🌱 **Additive tree growth** — new nodes seed at their parent and flow
+  organically into place; existing positions are cached so the tree stays
+  calm between updates
+- 🔍 **Cineastic search zoom** — every keystroke smoothly orbits the camera
+  onto the centroid of the current hits, with distance scaled to the hit
+  bounding box
 - 🎨 **Bucket-colored tool clusters** — Werkzeuge yellow, Web turquoise,
   Agenten purple; structured visual grouping by tool type
-- 🖱️ **Click the sun to expand everything**
+- 🖱️ **Click the sun to toggle all** — expand or collapse the entire tree
 - 📴 **Zero cloud** — everything runs locally (Python HTTP + Three.js + D3)
 
 ---
