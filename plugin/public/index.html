@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<title>Live-Thinking-Mindmap</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --fg: #e6edf3;
+    --fg-dim: #94a3b8;
+    --surface: rgba(20, 26, 34, 0.78);
+    --surface-strong: rgba(15, 20, 25, 0.96);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-soft: rgba(255, 255, 255, 0.05);
+    --alt-bg: rgba(255, 255, 255, 0.04);
+    --text-stroke: #0f1419;
+    --label-stroke: rgba(0, 0, 0, 0.9);
+    --scrollbar: rgba(255, 255, 255, 0.15);
+    --accent: #fde047;
+  }
+  body.light {
+    --bg: #f1f5f9;
+    --fg: #1e293b;
+    --fg-dim: #475569;
+    --surface: rgba(255, 255, 255, 0.9);
+    --surface-strong: rgba(255, 255, 255, 0.97);
+    --border: rgba(15, 23, 42, 0.12);
+    --border-soft: rgba(15, 23, 42, 0.06);
+    --alt-bg: rgba(15, 23, 42, 0.05);
+    --text-stroke: rgba(15, 23, 42, 0.35);
+    --label-stroke: rgba(255, 255, 255, 0.95);
+    --scrollbar: rgba(15, 23, 42, 0.2);
+    --accent: #b45309;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, "SF Pro Display", Helvetica, Arial, sans-serif; overflow: hidden;
+    transition: background 0.3s, color 0.3s; }
+
+
+  #searchbar { position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 10; display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 22px;
+    background: var(--surface); backdrop-filter: blur(12px);
+    border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    transition: all 0.2s; }
+  #searchbar:focus-within { border-color: var(--accent); box-shadow: 0 4px 24px rgba(253,224,71,0.2); }
+  #searchbar .icon { opacity: 0.5; font-size: 15px; color: var(--fg); }
+  #searchbar input { background: transparent; border: none; outline: none;
+    color: var(--fg); font-size: 12px; font-family: inherit; width: 260px; }
+  #searchbar input::placeholder { color: var(--fg-dim); opacity: 0.6; }
+  #searchbar .hits { font-size: 10px; opacity: 0.6; font-family: ui-monospace, Menlo, monospace;
+    min-width: 40px; text-align: right; color: var(--fg-dim); }
+
+  .node.search-match circle.main { stroke: var(--accent); stroke-width: 3px;
+    filter: drop-shadow(0 0 10px var(--accent)); }
+  .node.search-match text.label { fill: var(--accent) !important; font-weight: 700; }
+  .node.search-nomatch circle.main, .node.search-nomatch text, .node.search-nomatch circle.halo {
+    opacity: 0.12 !important; }
+  .link.search-dim { stroke-opacity: 0.06 !important; }
+
+  /* Shared collapsible box */
+  .box { position: fixed; z-index: 10; background: var(--surface); backdrop-filter: blur(8px);
+    border: 1px solid var(--border); border-radius: 8px; font-size: 11px;
+    transition: opacity 0.25s; opacity: 0.85; color: var(--fg); }
+  .box:hover { opacity: 1; }
+  .box.collapsed .box-body { display: none; }
+  .box-header { display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+    cursor: pointer; user-select: none; color: var(--fg-dim);
+    font-family: ui-monospace, Menlo, monospace; letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-soft); text-transform: uppercase; font-size: 10px; }
+  .box.collapsed .box-header { border-bottom: none; }
+  .box-header .chevron { font-size: 9px; opacity: 0.6; transition: transform 0.2s; }
+  .box.collapsed .box-header .chevron { transform: rotate(-90deg); }
+  .box-header .count { margin-left: auto; opacity: 0.5; font-size: 10px; }
+  .box-body { padding: 6px 12px 10px; }
+
+  #log { bottom: 40px; left: 20px; max-width: 42vw; min-width: 280px; }
+  #log.collapsed { min-width: unset; }
+  #log .box-body { padding: 0; }
+  #log-list { max-height: 240px; overflow-y: auto; padding: 4px 0; }
+  #log-list::-webkit-scrollbar, .box-body::-webkit-scrollbar { width: 4px; }
+  #log-list::-webkit-scrollbar-thumb, .box-body::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+  .log-entry { display: grid; grid-template-columns: 14px 52px 1fr; gap: 8px; align-items: baseline;
+    padding: 4px 12px; line-height: 1.4; font-family: ui-monospace, Menlo, monospace; color: var(--fg-dim);
+    cursor: pointer; transition: background 0.15s; }
+  .log-entry:hover { background: rgba(255,255,255,0.05); }
+  body.light .log-entry:hover { background: rgba(15,23,42,0.06); }
+  .log-entry .mark { font-size: 11px; }
+  .log-entry.thinking .mark { color: #fde047; animation: blink 1.1s ease-in-out infinite; }
+  body.light .log-entry.thinking .mark { color: #d97706; }
+  .log-entry.done .mark { color: #10b981; }
+  @keyframes blink { 50% { opacity: 0.35; } }
+  .log-entry .time { opacity: 0.4; font-size: 10px; letter-spacing: 0.3px; }
+  .log-entry .parent { opacity: 0.75; }
+  .log-entry .arrow { opacity: 0.3; margin: 0 4px; }
+  .log-entry .text { color: var(--fg); }
+  .log-entry.thinking .text { color: var(--accent); font-weight: 500; }
+
+  #legend { bottom: 40px; right: 20px; min-width: 160px; max-width: 240px; }
+  #legend-list { display: flex; flex-direction: column; gap: 3px; padding: 4px 0; }
+  #legend-list .row { display: flex; align-items: center; gap: 8px; padding: 2px 0;
+    font-size: 11px; color: var(--fg); }
+  #legend-list .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 6px currentColor; }
+
+  #settings { top: 20px; right: 20px; min-width: 230px; max-height: 82vh; overflow-y: auto; }
+  /* Auto-Fit Button (beide Modi) */
+  #auto-fit-btn { position: fixed; top: 16px; left: 16px; z-index: 11;
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--surface); backdrop-filter: blur(8px);
+    border: 1px solid var(--border); color: var(--fg);
+    font-size: 18px; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+    font-family: inherit; }
+  #auto-fit-btn:hover { border-color: var(--accent); color: var(--accent);
+    box-shadow: 0 0 12px rgba(253,224,71,0.25); }
+
+  /* Blender-Style 3D-Gizmo */
+  #gizmo3d { position: fixed; top: 10px; left: 62px; z-index: 11; display: none;
+    user-select: none; }
+  body.three-d #gizmo3d { display: block; }
+  #gizmo3d .axis-ball { cursor: pointer; transition: filter 0.15s; }
+  #gizmo3d .axis-ball:hover { filter: brightness(1.4); }
+  #gizmo3d .axis-reset { cursor: pointer; fill: rgba(200,200,200,0.15); stroke: rgba(200,200,200,0.5); }
+  #gizmo3d .axis-reset:hover { fill: rgba(253,224,71,0.25); stroke: var(--accent); }
+  #gizmo3d text { font-family: -apple-system, Helvetica, Arial, sans-serif; font-weight: 800; pointer-events: none; }
+  #settings .setting { display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 5px 0; cursor: pointer; user-select: none; }
+  #settings .setting span { color: var(--fg); font-size: 11px; }
+  body.light #settings .toggle { background: rgba(15, 23, 42, 0.2); }
+  body.light #settings .toggle::after { background: #fff; }
+  #settings .setting .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: 0 0 5px currentColor; margin-right: 6px; }
+  #settings .setting.branch { padding-left: 2px; }
+  #settings .setting.branch > span:nth-child(2) { flex: 1; }
+  #settings .toggle { width: 30px; height: 16px; background: rgba(148,163,184,0.3); border-radius: 10px;
+    position: relative; transition: background 0.2s; flex-shrink: 0; }
+  #settings .toggle::after { content: ''; position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; background: #e2e8f0; border-radius: 50%; transition: left 0.2s; }
+  #settings .setting.on .toggle { background: var(--accent); }
+  #settings .setting.on .toggle::after { left: 16px; background: #fff; }
+  #settings .sub { display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 0 4px 14px; font-size: 11px; color: var(--fg-dim);
+    transition: opacity 0.2s, max-height 0.2s; overflow: hidden; }
+  #settings .sub.disabled { opacity: 0.35; pointer-events: none; }
+  #settings input[type=number] { width: 44px; background: var(--alt-bg);
+    border: 1px solid var(--border); color: var(--fg); padding: 2px 6px;
+    border-radius: 4px; font-size: 11px; text-align: center; font-family: ui-monospace, Menlo, monospace; }
+  #settings input[type=number]:focus { outline: none; border-color: var(--accent); }
+  #settings .group-label { font-size: 9px; letter-spacing: 1.2px; opacity: 0.5;
+    text-transform: uppercase; margin: 10px 0 2px; font-weight: 600; }
+  #settings .sub.slider-row { flex-direction: column; align-items: stretch; gap: 4px;
+    padding: 6px 0 2px; }
+  #settings .sub.slider-row em { font-style: normal; color: var(--accent); font-weight: 600;
+    font-family: ui-monospace, Menlo, monospace; }
+  #settings input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+  #panel { position: fixed; top: 0; right: -440px; width: 420px; height: 100vh;
+    background: var(--surface-strong); backdrop-filter: blur(12px);
+    border-left: 1px solid var(--border); transition: right 0.25s;
+    overflow-y: auto; z-index: 20; padding: 20px; box-sizing: border-box;
+    --panel-accent: #fde047; }
+  #panel.open { right: 0; }
+  #panel h3 { margin: 24px 0 8px; font-size: 15px; color: var(--panel-accent); }
+  #panel h4 { margin: 14px 0 4px; font-size: 10px; opacity: 0.55; letter-spacing: 1px; text-transform: uppercase; color: var(--fg-dim); }
+  #panel .close { position: absolute; top: 12px; right: 14px; cursor: pointer; opacity: 0.5; font-size: 22px; background: none; border: none; color: var(--fg); }
+  #panel pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.5;
+    background: var(--alt-bg); padding: 10px; border-radius: 6px; margin: 4px 0;
+    font-family: ui-monospace, Menlo, monospace; max-height: 280px; overflow: auto; color: var(--fg); }
+  .md { font-size: 13px; line-height: 1.55; color: var(--fg);
+    background: var(--alt-bg); padding: 12px 14px; border-radius: 6px;
+    max-height: 320px; overflow-y: auto; border-left: 2px solid var(--panel-accent); }
+  .md::-webkit-scrollbar { width: 4px; } .md::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+  .md h1, .md h2, .md h3 { margin: 10px 0 6px; color: var(--panel-accent); font-weight: 700; }
+  .md h1 { font-size: 16px; } .md h2 { font-size: 14px; } .md h3 { font-size: 13px; }
+  .md p { margin: 6px 0; }
+  .md ul, .md ol { padding-left: 20px; margin: 6px 0; }
+  .md li { margin: 3px 0; }
+  .md li::marker { color: var(--panel-accent); opacity: 0.6; }
+  .md strong { color: var(--panel-accent); font-weight: 600; }
+  .md em { color: #06b6d4; font-style: italic; }
+  .md a { color: #10b981; text-decoration: none; border-bottom: 1px dotted rgba(16,185,129,0.4); }
+  .md a:hover { border-bottom-style: solid; }
+  .md code { background: var(--alt-bg); padding: 1px 5px; border-radius: 3px;
+    font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--panel-accent); }
+  .md pre { background: rgba(0,0,0,0.18); padding: 8px 10px; border-radius: 4px; margin: 6px 0;
+    font-size: 11px; line-height: 1.4; overflow-x: auto; }
+  body.light .md pre { background: rgba(15,23,42,0.08); }
+  .md pre code { background: none; padding: 0; color: var(--fg); }
+  .md blockquote { border-left: 2px solid var(--border); margin: 6px 0; padding: 0 10px;
+    color: var(--fg-dim); font-style: italic; }
+  .md hr { border: 0; border-top: 1px solid var(--border-soft); margin: 10px 0; }
+  .md table { border-collapse: collapse; margin: 6px 0; font-size: 12px; }
+  .md th, .md td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
+  .md th { background: var(--alt-bg); color: var(--panel-accent); }
+  #panel .btn { display: inline-block; margin: 4px 6px 4px 0; padding: 6px 12px;
+    background: color-mix(in srgb, var(--panel-accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--panel-accent) 35%, transparent);
+    border-radius: 6px; font-size: 11px; cursor: pointer; color: var(--panel-accent); transition: all 0.2s; }
+  #panel .btn:hover { background: color-mix(in srgb, var(--panel-accent) 25%, transparent); }
+  #panel .meta { font-size: 10px; opacity: 0.55; font-family: ui-monospace, Menlo, monospace;
+    word-break: break-all; margin-top: 4px; color: var(--fg-dim); }
+  #panel kbd { background: var(--alt-bg); padding: 1px 6px; border-radius: 3px;
+    font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: var(--fg); }
+
+  #footer { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+    z-index: 5; opacity: 0.8; transition: opacity 0.2s; }
+  #footer:hover { opacity: 1; }
+  /* Originalstile aus ai.peab.at – nur für #logo relevant */
+  #footer .logo {
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+  #footer .austro { color: #d00000; }
+  #footer .muted { color: #6b7280; }
+  #footer a.reset,
+  #footer a.reset:link,
+  #footer a.reset:visited,
+  #footer a.reset:hover,
+  #footer a.reset:active {
+    color: inherit;
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    outline: none;
+  }
+
+  #map { width: 100vw; height: 100vh; display: block; cursor: grab; }
+  #map:active { cursor: grabbing; }
+  .link { fill: none; stroke-opacity: 0.4; stroke-width: 1px; transition: stroke-opacity 0.3s; }
+  .link.thinking { stroke-opacity: 0.95; stroke-width: 1.8px; stroke-dasharray: 5 4;
+    animation: flow 0.8s linear infinite; }
+  .link.dim { stroke-opacity: 0.08; }
+  @keyframes flow { to { stroke-dashoffset: -9; } }
+  .node text { font-size: 13px; paint-order: stroke; stroke: var(--label-stroke); stroke-width: 4.5px;
+    stroke-linejoin: round; transition: fill 0.4s, font-size 0.4s, opacity 0.3s; cursor: pointer;
+    fill: var(--fg); font-weight: 200; letter-spacing: 0.2px; }
+  .node circle.main { stroke: var(--text-stroke); stroke-width: 2px; cursor: pointer; transition: r 0.4s, fill 0.4s, opacity 0.3s; }
+  .node.center text { font-size: 14px; font-weight: 300; }
+  .depth-1 text { font-size: 12px; font-weight: 300; }
+  .node.dim circle, .node.dim text { opacity: 0.18; }
+  circle.halo { fill: none; stroke-width: 2.5px; opacity: 0; pointer-events: none; }
+  .thinking circle.halo { opacity: 1; animation: pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { r: 10; opacity: 0.25; stroke-width: 2px; }
+    50% { r: 24; opacity: 0.85; stroke-width: 3.5px; }
+  }
+  .thinking text.label { font-weight: 400; }
+  .thinking circle.main { filter: drop-shadow(0 0 6px var(--accent)); }
+  .user_prompt text.label { font-weight: 300; }
+  .node.selected circle.main { stroke: var(--accent); stroke-width: 3px; }
+  .node circle.main, .node circle.halo, .node circle.hitbox { stroke-dasharray: none !important; }
+  .node circle.halo, .node circle.main { pointer-events: none; }
+  .node circle.hitbox { fill: transparent; stroke: none; cursor: pointer; }
+  body.no-labels .node text.label { display: none; }
+  body.no-labels .node.depth-1 text.label { display: block; }
+  /* Root-Knoten nie mit Label */
+  .node.center text.label { display: none !important; }
+  /* Outline-Toggle */
+  body.no-label-outline .node text.label { stroke: none !important; stroke-width: 0 !important; }
+
+  /* WebGL-Container (via three.js / 3d-force-graph) — sowohl 2D als auch 3D */
+  #map-3d { position: fixed; inset: 0; z-index: 1; background: #070b10; }
+  body.light #map-3d { background: #eaedf3; }
+  /* SVG bleibt als Fallback vorhanden, wird aber nicht mehr angezeigt */
+  #map { display: none !important; }
+  /* Labels per Three.js gerendert; tooltip-stil */
+  .graph-tooltip { font-family: -apple-system, Helvetica, Arial, sans-serif !important;
+    font-size: 12px !important; padding: 6px 10px !important; border-radius: 6px !important; }
+  .node text.plus { font-size: 13px; font-weight: 700; fill: #0f1419; paint-order: normal;
+    stroke: none; cursor: pointer; pointer-events: auto; font-family: ui-monospace, Menlo, monospace; }
+  body.light .node text.plus { fill: #f8fafc; }
+</style>
+</head>
+<body>
+<div id="searchbar">
+  <span class="icon">⌕</span>
+  <input id="search-input" type="search" placeholder="Knoten suchen…" autocomplete="off" />
+  <span class="hits" id="search-hits"></span>
+</div>
+
+<button id="auto-fit-btn" title="Auto-Fit (F)" aria-label="Auto-Fit">⤢</button>
+<svg id="gizmo3d" width="110" height="110" viewBox="0 0 110 110"></svg>
+
+<div id="settings" class="box">
+  <div class="box-header" onclick="toggleBox('settings')">
+    <span class="chevron">▼</span>
+    <span>Einstellungen</span>
+  </div>
+  <div class="box-body">
+    <div class="sub slider-row">
+      <span>Verlaufs-Tiefe <em id="history-pct">69%</em></span>
+      <input id="history-slider" type="range" min="0" max="100" step="1" />
+    </div>
+    <label class="setting" data-key="onlyActive">
+      <span>Nur aktive Knoten</span><div class="toggle"></div>
+    </label>
+    <label class="setting" data-key="showLabels">
+      <span>Knoten-Labels</span><div class="toggle"></div>
+    </label>
+    <label class="setting" data-key="labelOutline">
+      <span>Label-Outline</span><div class="toggle"></div>
+    </label>
+    <div class="group-label">Darstellung</div>
+    <label class="setting" data-key="threeD">
+      <span>3D</span><div class="toggle"></div>
+    </label>
+    <label class="setting" data-key="lightMode">
+      <span>Hellmodus</span><div class="toggle"></div>
+    </label>
+  </div>
+</div>
+
+<div id="legend" class="box">
+  <div class="box-header" onclick="toggleBox('legend')">
+    <span class="chevron">▼</span>
+    <span>Legende</span>
+  </div>
+  <div class="box-body">
+    <div id="legend-list"></div>
+  </div>
+</div>
+
+<div id="log" class="box collapsed">
+  <div class="box-header" onclick="toggleBox('log')">
+    <span class="chevron">▼</span>
+    <span>Aktivitätslog</span>
+    <span class="count" id="log-count">0</span>
+  </div>
+  <div class="box-body">
+    <div id="log-list"></div>
+  </div>
+</div>
+
+<div id="footer">
+  <div id="logo" class="logo">
+    <a href="https://austro-intelligence.at" target="_blank" rel="noopener" class="reset">.<span class="austro">A</span>I <span class="muted">-</span> <span class="austro">Austro</span> Intelligence<span class="muted">.at</span></a>
+  </div>
+</div>
+
+<div id="panel">
+  <button class="close" onclick="closePanel()">×</button>
+  <h3 id="p-title">—</h3>
+  <div class="meta" id="p-meta"></div>
+  <div id="p-body"></div>
+</div>
+
+<div id="map-3d"></div>
+<svg id="map"></svg>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<!-- 3D-Stack: feste kompatible Versionen (three r147 + 3d-force-graph 1.71.5 + three-spritetext 1.7) -->
+<script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three-spritetext@1.7.0/dist/three-spritetext.min.js"></script>
+<script src="https://unpkg.com/3d-force-graph@1.71.5/dist/3d-force-graph.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script>
+// ---------- Settings ----------
+const SETTINGS_KEY = 'mindmap-settings-v1';
+const settings = Object.assign({
+  historyDepth: 69,          // 0..100 % des Transkripts
+  onlyActive: false,
+  showLabels: true,
+  labelOutline: true,
+  collapsed: {},
+  threeD: false,
+  lightMode: false,
+}, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
+// Alte Keys aufräumen
+delete settings.focusActive; delete settings.dimInactive; delete settings.hideInactive;
+delete settings.branchVisible; delete settings.fullHistory; delete settings.showToolSubs;
+delete settings.maxToolEntries;
+if (typeof settings.historyDepth !== 'number') settings.historyDepth = 69;
+if (typeof settings.showLabels !== 'boolean') settings.showLabels = true;
+if (!settings.collapsed || typeof settings.collapsed !== 'object') settings.collapsed = {};
+
+function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+function applySettings() {
+  document.body.classList.toggle('light', !!settings.lightMode);
+  document.body.classList.toggle('no-labels', !settings.showLabels);
+  document.body.classList.toggle('no-label-outline', !settings.labelOutline);
+  document.body.classList.toggle('three-d', !!settings.threeD);
+  // Three.js-Graph immer initialisieren (auch im 2D-Modus)
+  if (typeof init3D === 'function') init3D();
+  if (forceGraph3d) {
+    forceGraph3d.backgroundColor(settings.lightMode ? '#eaedf3' : '#070b10');
+    // Dimension + Kamera anhand 2D/3D-Toggle konfigurieren
+    const dims = settings.threeD ? 3 : 2;
+    if (forceGraph3d.numDimensions) forceGraph3d.numDimensions(dims);
+    const controls = forceGraph3d.controls && forceGraph3d.controls();
+    if (controls) {
+      controls.enableRotate = settings.threeD;
+      if (!settings.threeD) {
+        // 2D: Top-Down-Kamera, keine Rotation
+        forceGraph3d.cameraPosition({ x: 0, y: 0, z: 600 }, { x: 0, y: 0, z: 0 }, 600);
+      }
+    }
+    if (forceGraph3d.refresh) forceGraph3d.refresh();
+  }
+  if (typeof rebuild === 'function' && root) rebuild();
+  document.querySelectorAll('#settings .setting[data-key]').forEach(el => {
+    const k = el.dataset.key; el.classList.toggle('on', !!settings[k]);
+  });
+  const slider = document.getElementById('history-slider');
+  const pct = document.getElementById('history-pct');
+  if (slider) slider.value = settings.historyDepth;
+  if (pct) pct.textContent = settings.historyDepth + '%';
+}
+document.querySelectorAll('#settings .setting[data-key]').forEach(el => {
+  el.addEventListener('click', async (ev) => {
+    if (ev.target.closest('input')) return;
+    const k = el.dataset.key;
+    settings[k] = !settings[k];
+    saveSettings(); applySettings();
+    rebuild();
+  });
+});
+
+setTimeout(() => {
+  const slider = document.getElementById('history-slider');
+  const pct = document.getElementById('history-pct');
+  if (slider) {
+    slider.value = settings.historyDepth;
+    pct.textContent = settings.historyDepth + '%';
+    // Während Drag: NUR Prozent-Anzeige aktualisieren, keine Graph-Neuberechnung
+    slider.addEventListener('input', () => {
+      const v = parseInt(slider.value);
+      pct.textContent = v + '%';
+    });
+    // Erst bei Release (change): Settings + Graph aktualisieren
+    slider.addEventListener('change', () => {
+      const v = parseInt(slider.value);
+      settings.historyDepth = v;
+      saveSettings();
+      rebuild();  // Client-side Filter auf Basis der neuen Tiefe
+    });
+    slider.addEventListener('click', e => e.stopPropagation());
+  }
+}, 0);
+
+// (Branch-Toggles sind jetzt in der Legende integriert — renderLegend erstellt sie.)
+
+async function applyHistoryDepth() {
+  const pctVal = Math.max(0, Math.min(100, parseInt(settings.historyDepth) || 0));
+  // Server gibt immer Full-History (depth=1) zurück, Client schneidet per settings.historyDepth ab.
+  // So kann der Slider frei nach oben/unten ohne weitere Server-Calls bewegt werden.
+  statusEl.textContent = '⏳ lade Verlauf…';
+  liveThoughts.clear(); lastSeq = 0;
+  logList.innerHTML = ''; logTotal = 0; logCount.textContent = 0;
+  try {
+    if (pctVal === 0) {
+      await fetch('/api/clear', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+    } else {
+      await fetch('/api/replay', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({depth: 1.0})});  // immer komplett
+    }
+    await poll();
+  } catch (e) {
+    statusEl.textContent = '○ Fehler beim Laden';
+  }
+}
+
+function toggleBox(id) { document.getElementById(id).classList.toggle('collapsed'); }
+
+// ---------- Tree ----------
+const baseTree = {
+  name: "Aktueller Kontext",
+  color: "#ffffff",
+  children: [
+    { name: "Themen", color: "#10b981", children: [] },
+    { name: "Werkzeuge", color: "#fbbf24", children: [] },
+    { name: "Agenten", color: "#c084fc", children: [] },
+    { name: "Web", color: "#22d3ee", children: [] }
+  ]
+};
+
+// Prompts nach Themen klassifizieren (einfache Keyword-Heuristik)
+function classifyTopic(text) {
+  const t = (text || "").toLowerCase();
+  if (/noyron|leap\s*71|rocket|engine|picogk/.test(t)) return "Noyron / LEAP 71";
+  if (/\bapfel\b|\bapple\b/.test(t)) return "Apfel";
+  if (/new\s*york|nyc|uhrzeit/.test(t)) return "NYC-Zeit";
+  if (/banane/.test(t)) return "Bananen";
+  if (/oktopus|zufällige|zufaellige|experiment|nachdenk/.test(t)) return "Gedankenexperimente";
+  if (/veröffent|veroeff|publish|marketplace|markt/.test(t)) return "Veröffentlichung";
+  if (/\bhook\b|usersubmit|posttooluse|pretooluse|stop[- ]?hook/.test(t)) return "Hooks & Events";
+  if (/install|lokal|plugin\.json|brainmap|plugin.*test/.test(t)) return "Installation";
+  if (/server|\bport\b|preview|shutdown|nohup|4823/.test(t)) return "Server & Ports";
+  if (/slider|verlauf|history|chatverlauf|tiefe/.test(t)) return "Slider & History";
+  if (/legende|footer|\.ai\b|austro/.test(t)) return "Legende & Footer";
+  if (/toggle|\bsetting|einstellung|werkzeug-details|nur aktive/.test(t)) return "Toggles & Optionen";
+  if (/opacity|alter|schriftgröße|schriftgroesse|font|darstell|label/.test(t)) return "Darstellung";
+  if (/collapse|einklapp|ausblend|versteck|\+.*symbol|plus[- ]/.test(t)) return "Collapse & Sichtbarkeit";
+  if (/panel|klick|interakt|kontext-?panel|zusammenfas|markdown/.test(t)) return "Panel & Kontext";
+  if (/mindmap|grafisch|visual|gedank/.test(t)) return "Mindmap-Aufbau";
+  if (/such|search|highlight|glassy/.test(t)) return "Suche";
+  return "Sonstiges";
+}
+
+// Label-Text kürzen — max. ca. 2/3 der bisherigen Länge
+function truncateLabel(s, max = 45) {
+  if (!s) return '';
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1).trimEnd() + '…';
+}
+
+// Deterministische Themen-Farbe
+function themeColor(name) {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) | 0;
+  return `hsl(${((h % 360) + 360) % 360}, 55%, 62%)`;
+}
+
+// Kontrast-Outline für Text: je nach Helligkeit weiß oder schwarz
+function contrastStroke(color) {
+  const c = d3.color(color);
+  if (!c) return '#000';
+  const rgb = c.rgb();
+  const lum = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+  return lum > 0.55 ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)';
+}
+
+// Im Light-Mode helle Farben abdunkeln für Text-Lesbarkeit
+function readableColor(color) {
+  if (!settings.lightMode) return color;
+  try {
+    const hsl = d3.hsl(color);
+    if (isNaN(hsl.h)) return color;
+    hsl.l = Math.min(hsl.l, 0.35);
+    hsl.s = Math.min(0.95, hsl.s + 0.1);
+    return hsl.formatHex();
+  } catch (e) { return color; }
+}
+
+// Root-Knoten in Light-Mode dunkel statt weiß
+function nodeColor(d) {
+  if (d.depth === 0 && settings.lightMode) return '#1e293b';
+  return colorOf(d);
+}
+
+const svg = d3.select("#map");
+const g = svg.append("g");
+g.append("g").attr("class", "links");
+g.append("g").attr("class", "nodes");
+const zoomBehavior = d3.zoom().scaleExtent([0.1, 3]).on("zoom", e => g.attr("transform", e.transform));
+svg.call(zoomBehavior);
+
+let root, sim;
+const liveThoughts = new Map();
+const logList = document.getElementById('log-list');
+const logCount = document.getElementById('log-count');
+const statusEl = { textContent: "", style: { color: "" } }; // no-op Stub, Status ist entfernt
+const legendList = document.getElementById('legend-list');
+let logTotal = 0;
+let lastSeq = 0;
+let connected = false;
+let selectedKey = null;
+let selectedColor = null;
+const knownColors = new Map();
+
+const TOOL_BRANCHES = new Set(["Werkzeuge", "Agenten", "Web"]);
+
+const colorOf = d => { let n = d; while (n.parent && !n.data.color) n = n.parent;
+  return n.data.color || "#7dd3fc"; };
+const keyOf = d => d.data._key || d.data.name;
+
+function findNode(tree, name) {
+  if (tree.name === name) return tree;
+  if (tree.children) for (const c of tree.children) { const r = findNode(c, name); if (r) return r; }
+  return null;
+}
+
+function resolveParent(tree, thought) {
+  // "Nutzer" (Alt-Bezeichnung vom Hook) → "Themen"
+  let name = thought.parent === "Nutzer" ? "Themen" : thought.parent;
+  const node = findNode(tree, name);
+  if (node) return node;
+  if (thought.kind && thought.kind.startsWith('tool')) return findNode(tree, "Werkzeuge");
+  return findNode(tree, "Aktueller Kontext");
+}
+
+function isCollapsed(key) { return !!settings.collapsed[key]; }
+let hasHiddenChildren = new Set();
+
+function buildTree() {
+  hasHiddenChildren = new Set();
+  const tree = JSON.parse(JSON.stringify(baseTree));
+
+  // Thoughts nach seq sortieren (Prompts kommen vor ihren Tools)
+  let all = [...liveThoughts.values()].filter(t => !t.silent)
+    .sort((a, b) => (a.seq || 0) - (b.seq || 0));
+
+  // Live-Client-Side-Filter nach Verlaufs-Tiefe (für flüssiges Slider-Dragging ohne Server-Hit)
+  const depthPct = Math.max(0, Math.min(100, parseInt(settings.historyDepth) || 0));
+  if (depthPct < 100 && all.length > 5) {
+    const keep = Math.max(1, Math.ceil(all.length * (depthPct / 100)));
+    all = all.slice(-keep);
+  }
+
+  // 3. "Nur aktive Knoten" — zeigt den aktuellen Task:
+  //    letzter user_prompt + alle seine Tools/Subs, plus aktiv pulsierende Knoten.
+  //    Wird beim nächsten user_prompt automatisch zurückgesetzt.
+  if (settings.onlyActive) {
+    let latestPromptId = null, latestPromptSeq = -1;
+    for (const t of all) {
+      if (t.kind === "user_prompt" && (t.seq || 0) > latestPromptSeq) {
+        latestPromptSeq = t.seq || 0;
+        latestPromptId = t.id;
+      }
+    }
+    const allowed = new Set();
+    if (latestPromptId) {
+      allowed.add(latestPromptId);
+      // Iterativ: Tools können unter dem Prompt hängen, weitere Nodes könnten unter Tools hängen
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const t of all) {
+          if (!allowed.has(t.id) && t.parent_id && allowed.has(t.parent_id)) {
+            allowed.add(t.id); changed = true;
+          }
+        }
+      }
+    }
+    // Aktiv pulsierende Knoten immer einschließen (Stop-Race-Condition-Sicherheit)
+    for (const t of all) if (t.status === "thinking") allowed.add(t.id);
+    all = all.filter(t => allowed.has(t.id));
+  }
+
+  const nodeById = new Map();
+
+  // Eigenen _key pro target pflegen, damit Collapse-Check funktioniert
+  // (muss identisch zu keyOf() sein — _key falls gesetzt, sonst name)
+  function keyForNode(n) { return n._key || n.name; }
+
+  // Themen-Map aus Prompts aufbauen (promptId → themeName) + Themen-Set
+  const promptTheme = new Map();
+  const themeSet = new Set();
+  for (const t of all) {
+    if (t.kind === "user_prompt") {
+      const theme = classifyTopic((t.detail && t.detail.prompt) || t.text || "");
+      promptTheme.set(t.id, theme);
+      themeSet.add(theme);
+    }
+  }
+  // Theme-Sub-Branches unter Themen + allen Tool-Buckets (Werkzeuge/Web/Agenten) anlegen
+  const themenBranch = findNode(tree, "Themen");
+  const werkzeugeBranch = findNode(tree, "Werkzeuge");
+  const toolBucketNames = ["Werkzeuge", "Web", "Agenten"];
+  const themeNodes = { themen: new Map(), Werkzeuge: new Map(), Web: new Map(), Agenten: new Map() };
+  const sortedThemes = [...themeSet].sort();
+  for (const theme of sortedThemes) {
+    const col = themeColor(theme);
+    if (themenBranch) {
+      const n = { name: theme, color: col, _key: 'th:t:' + theme, children: [] };
+      themenBranch.children.push(n);
+      themeNodes.themen.set(theme, n);
+    }
+    for (const bucketName of toolBucketNames) {
+      const bucket = findNode(tree, bucketName);
+      if (!bucket) continue;
+      const n = { name: theme, color: col, _key: `th:${bucketName}:${theme}`, children: [] };
+      bucket.children.push(n);
+      themeNodes[bucketName].set(theme, n);
+    }
+  }
+
+  for (const t of all) {
+    let target = null;
+    const isTool = t.kind && t.kind.startsWith("tool");
+    if (t.kind === "user_prompt") {
+      const theme = promptTheme.get(t.id);
+      target = theme ? themeNodes.themen.get(theme) : themenBranch;
+    } else if (isTool) {
+      // Bucket aus t.parent (Werkzeuge/Web/Agenten), Theme aus parent_id → Prompt
+      const bucket = toolBucketNames.includes(t.parent) ? t.parent : "Werkzeuge";
+      const parentTheme = t.parent_id && promptTheme.get(t.parent_id);
+      if (parentTheme && themeNodes[bucket] && themeNodes[bucket].has(parentTheme)) {
+        target = themeNodes[bucket].get(parentTheme);
+      } else {
+        target = findNode(tree, bucket) || werkzeugeBranch;
+      }
+    } else {
+      target = findNode(tree, t.parent);
+    }
+    if (!target) continue;
+    const tkey = keyForNode(target);
+    if (isCollapsed(tkey)) { hasHiddenChildren.add(tkey); continue; }
+    const newNode = {
+      name: t.text, _key: 't:' + t.id, _status: t.status, _kind: t.kind,
+      _thoughtId: t.id, _ts: t.ts || 0
+    };
+    if (!target.children) target.children = [];
+    target.children.push(newNode);
+    nodeById.set(t.id, newNode);
+  }
+  return tree;
+}
+
+function hasThinking(node) {
+  if (!node.children) return false;
+  return node.children.some(c => c.data._status === 'thinking' || hasThinking(c));
+}
+
+function rebuild() {
+  const saved = new Map();
+  if (root) root.descendants().forEach(n => saved.set(keyOf(n), { x: n.x, y: n.y, vx: n.vx || 0, vy: n.vy || 0 }));
+
+  root = d3.hierarchy(buildTree());
+  const W = window.innerWidth, H = window.innerHeight;
+  root.descendants().forEach(n => {
+    const p = saved.get(keyOf(n));
+    if (p) Object.assign(n, p);
+    else if (n.parent) {
+      const pp = saved.get(keyOf(n.parent));
+      if (pp) { n.x = pp.x + (Math.random() - 0.5) * 40; n.y = pp.y + (Math.random() - 0.5) * 40; }
+      else { n.x = W / 2; n.y = H / 2; }
+    } else { n.x = W / 2; n.y = H / 2; }
+  });
+
+  // Legende aktualisieren, wenn neue depth-1-Farben auftauchen
+  let legendChanged = false;
+  for (const c of baseTree.children) {
+    if (knownColors.get(c.name) !== c.color) {
+      knownColors.set(c.name, c.color); legendChanged = true;
+    }
+  }
+  if (legendChanged) renderLegend();
+
+  function isDim() { return false; }
+
+  const linkSel = g.select(".links").selectAll("path")
+    .data(root.links(), d => keyOf(d.source) + "→" + keyOf(d.target));
+  linkSel.exit().remove();
+  const linkEnter = linkSel.enter().append("path").attr("class", "link").attr("stroke", d => colorOf(d.target));
+  linkEnter.merge(linkSel)
+    .classed("thinking", d => d.target.data._status === "thinking")
+    .classed("dim", d => isDim(d.target));
+
+  const nodeSel = g.select(".nodes").selectAll("g.node").data(root.descendants(), keyOf);
+  nodeSel.exit().remove();
+  const nodeEnter = nodeSel.enter().append("g")
+    .attr("class", d => nodeClass(d))
+    .call(d3.drag()
+      .on("start", (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on("end", (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+  // Große unsichtbare Hitbox zuerst (empfängt Klicks für Toggle)
+  nodeEnter.append("circle").attr("class", "hitbox")
+    .on("click", (ev, d) => { ev.stopPropagation(); toggleCollapse(d); });
+  nodeEnter.append("circle").attr("class", "halo").attr("stroke", d => colorOf(d));
+  nodeEnter.append("circle").attr("class", "main");
+  nodeEnter.append("text").attr("class", "plus").text("+")
+    .on("click", (ev, d) => { ev.stopPropagation(); toggleCollapse(d); });
+  nodeEnter.append("text").attr("class", "label")
+    .on("click", (ev, d) => { ev.stopPropagation(); onNodeClick(d); });
+
+  const all = nodeEnter.merge(nodeSel);
+  all.attr("class", d => nodeClass(d));
+  all.select("circle.hitbox")
+    .attr("r", d => d.depth === 0 ? 48 : d.depth === 1 ? 28 : d.depth === 2 ? 20 : 14);
+  all.select("circle.main").attr("r", d => d.depth === 0 ? 22 : d.depth === 1 ? 9 : d.depth === 2 ? 7 : 5).attr("fill", nodeColor);
+  all.select("circle.halo").attr("stroke", d => nodeColor(d));
+  all.select("text.label").attr("dy", 4).attr("x", d => d.depth === 0 ? 30 : 12)
+    .text(d => truncateLabel(d.data.name))
+    .style("fill", d => readableColor(nodeColor(d)))  // Font im Light-Mode abgedunkelt für Kontrast
+    .style("stroke", null)
+    .style("stroke-width", null);
+  // "+" nur bei eingeklappten Knoten mit tatsächlich vorhandenen Kindern
+  all.select("text.plus")
+    .attr("x", 0).attr("y", 0)
+    .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "central")
+    .style("display", d => hasHiddenChildren.has(keyOf(d)) ? null : "none");
+
+  // Opacity + Schriftgröße je nach Alter
+  const tss = root.descendants().map(n => n.data._ts).filter(x => x);
+  const tmax = tss.length ? Math.max(...tss) : 0;
+  const tmin = tss.length ? Math.min(...tss) : 0;
+  const span = Math.max(1, tmax - tmin);
+  function ageFactor(d) {
+    if (d.data._status === "thinking") return 1;
+    if (!d.data._ts || d.depth <= 1) return 1;
+    return 1 - (tmax - d.data._ts) / span;  // 0 = alt, 1 = neu
+  }
+  function opacityFor(d) {
+    const f = ageFactor(d);
+    if (d.data._status === "thinking" || d.depth <= 1) return 0.97;
+    return 0.05 + f * 0.92;  // 0.05..0.97
+  }
+  function fontSizeFor(d) {
+    // Alle Werte ca. 20 % kleiner als zuvor
+    if (d.depth === 0) return "14px";
+    if (d.depth === 1) return "12px";
+    if (d.data._status === "thinking") return "13px";
+    const f = ageFactor(d);
+    return (3.2 + f * 9.6).toFixed(1) + "px";  // 3.2 .. 12.8 px
+  }
+  all.select("circle.main").style("opacity", opacityFor);
+  all.select("text.label").style("opacity", opacityFor).style("font-size", fontSizeFor);
+  g.select(".links").selectAll("path").style("opacity", d => opacityFor(d.target));
+
+  // Suchfilter nach jedem Rebuild erneut anwenden
+  if (typeof applySearch === 'function') applySearch();
+
+  // 3D-Ansicht synchronisieren
+  if (settings.threeD && typeof update3D === 'function') update3D();
+
+  // Adaptive Skalierung: mehr Knoten → etwas kompakter, aber nie zu klein
+  const nCount = root.descendants().length;
+  const densityScale = Math.max(0.8, Math.min(1.2, Math.sqrt(50 / Math.max(30, nCount))));
+  if (!sim) {
+    sim = d3.forceSimulation(root.descendants())
+      .velocityDecay(0.78)      // stärkere Dämpfung — ruhigere Bewegungen
+      .alphaDecay(0.045)        // kommt schneller zum Stillstand
+      .alphaMin(0.003)
+      .force("link", d3.forceLink(root.links()).id(keyOf)
+        .distance(d => (d.source.depth === 0 ? 190 : d.source.depth === 1 ? 70 : 45) * densityScale)
+        .strength(d => d.source.depth === 1 ? 1.1 : d.source.depth >= 2 ? 0.9 : 0.7))
+      .force("charge", d3.forceManyBody().strength(d => (d.depth === 0 ? -1500 : d.depth === 1 ? -420 : d.depth === 2 ? -160 : -60) * densityScale))
+      .force("center", d3.forceCenter(W / 2, H / 2))
+      .force("radial", d3.forceRadial(d => [0, 140, 260, 360, 440][Math.min(d.depth, 4)] * densityScale, W / 2, H / 2).strength(d => d.depth <= 1 ? 0.3 : 0.1))
+      .force("x", d3.forceX(W / 2).strength(0.035))
+      .force("y", d3.forceY(H / 2).strength(0.035))
+      .force("collide", d3.forceCollide().radius(d => (d.depth === 0 ? 90 : d.depth === 1 ? 55 : d.depth === 2 ? 40 : 28) * densityScale))
+      .on("tick", tick);
+  } else {
+    sim.force("link").distance(d => (d.source.depth === 0 ? 190 : d.source.depth === 1 ? 70 : 45) * densityScale);
+    sim.force("charge").strength(d => (d.depth === 0 ? -1500 : d.depth === 1 ? -420 : d.depth === 2 ? -160 : -60) * densityScale);
+    sim.force("collide").radius(d => (d.depth === 0 ? 90 : d.depth === 1 ? 55 : d.depth === 2 ? 40 : 28) * densityScale);
+    sim.nodes(root.descendants());
+    sim.force("link").links(root.links());
+    // Weniger Energie beim Rebuild — Graph "zappelt" nicht mehr bei jedem neuen Event
+    sim.alpha(0.15).restart();
+  }
+
+  // Auto-Fit beim ersten Rebuild (nach Settle der Simulation)
+  if (!autoFitDone && root.descendants().length > 4) {
+    autoFitDone = true;
+    const fitAfterSettle = () => { setTimeout(autoFit, 200); sim.on('end', null); };
+    sim.on('end', fitAfterSettle);
+    setTimeout(fitAfterSettle, 3500);  // Safety-Fallback
+  }
+}
+
+let autoFitDone = false;
+function autoFit() {
+  try {
+    const bbox = g.node().getBBox();
+    if (!bbox.width || !bbox.height || bbox.width < 50) return;
+    const W = window.innerWidth, H = window.innerHeight;
+    const pad = 120;
+    const scale = Math.min((W - 2*pad) / bbox.width, (H - 2*pad) / bbox.height, 1);
+    const tx = W/2 - (bbox.x + bbox.width/2) * scale;
+    const ty = H/2 - (bbox.y + bbox.height/2) * scale;
+    svg.transition().duration(700)
+      .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+  } catch (e) { /* ignore */ }
+}
+
+function nodeClass(d) {
+  const parts = ["node", "depth-" + d.depth];
+  if (d.depth === 0) parts.push("center");
+  if (d.data._status) parts.push(d.data._status);
+  if (d.data._kind) parts.push(d.data._kind);
+  if (selectedKey === keyOf(d)) parts.push("selected");
+  if (settings.collapsed[keyOf(d)]) parts.push("collapsed-node");
+  return parts.join(" ");
+}
+
+function toggleCollapse(d) {
+  const k = keyOf(d);
+  // Depth-1-Hauptäste (Werkzeuge, Themen, Agenten, Web): falls sie Theme-Sub-Knoten
+  // haben, Klick togglet alle Sub-Themen gleichzeitig (alle einblenden / alle ausblenden).
+  if (d.depth === 1 && d.children && d.children.length > 1) {
+    const anyExpanded = d.children.some(c => !settings.collapsed[keyOf(c)]);
+    for (const c of d.children) {
+      const ck = keyOf(c);
+      if (anyExpanded) settings.collapsed[ck] = true;
+      else delete settings.collapsed[ck];
+    }
+  } else {
+    if (settings.collapsed[k]) delete settings.collapsed[k];
+    else settings.collapsed[k] = true;
+  }
+  saveSettings(); rebuild();
+}
+
+function tick() {
+  g.select(".links").selectAll("path").attr("d", d => {
+    const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+    return `M${d.source.x},${d.source.y} Q${d.source.x + dx/2},${d.source.y + dy/2} ${d.target.x},${d.target.y}`;
+  });
+  g.select(".nodes").selectAll("g.node").attr("transform", d => `translate(${d.x},${d.y})`);
+}
+
+function renderLegend() {
+  legendList.innerHTML = '';
+  const rows = [{name: baseTree.name, color: baseTree.color}];
+  for (const c of baseTree.children) rows.push({name: c.name, color: c.color});
+  rows.push({name: "aktiv (thinking)", color: "#fde047"});
+  rows.push({name: "Nutzer-Prompt", color: "#10b981"});
+  for (const r of rows) {
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.innerHTML = `<span class="dot" style="background:${r.color};color:${r.color}"></span><span>${r.name}</span>`;
+    legendList.appendChild(el);
+  }
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function logLine(thought) {
+  const status = thought.status || 'done';
+  const mark = status === 'thinking' ? '◉' : '✓';
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  const kind = thought.kind || '';
+  const existing = logList.querySelector(`[data-id="${CSS.escape(thought.id || '')}"]`);
+  if (existing) {
+    existing.className = `log-entry ${status} ${kind}`;
+    existing.querySelector('.mark').textContent = mark;
+    existing.querySelector('.text').textContent = thought.text;
+    return;
+  }
+  const el = document.createElement('div');
+  el.className = `log-entry ${status} ${kind}`;
+  el.dataset.id = thought.id || '';
+  el.innerHTML = `<span class="mark">${mark}</span>` +
+    `<span class="time">${hh}:${mm}:${ss}</span>` +
+    `<span><span class="parent">${escapeHtml(thought.parent || '')}</span>` +
+    `<span class="arrow">›</span>` +
+    `<span class="text">${escapeHtml(thought.text || '')}</span></span>`;
+  el.addEventListener('click', () => focusNodeById(thought.id));
+  logList.prepend(el);
+  logTotal++;
+  logCount.textContent = logTotal;
+  while (logList.children.length > 60) logList.removeChild(logList.lastChild);
+}
+
+async function poll() {
+  try {
+    const r = await fetch('/api/state?since=' + lastSeq, { cache: 'no-store' });
+    if (!r.ok) throw new Error('state ' + r.status);
+    const data = await r.json();
+    if (!connected) { connected = true; statusEl.textContent = '● live'; statusEl.style.color = '#10b981'; }
+    let changed = false;
+    for (const t of data.thoughts) {
+      liveThoughts.set(t.id, { ...liveThoughts.get(t.id), ...t });
+      lastSeq = Math.max(lastSeq, t.seq || 0);
+      changed = true;
+      logLine(t);
+    }
+    if (changed) rebuild();
+  } catch (e) {
+    connected = false;
+    statusEl.textContent = '○ warte auf server';
+    statusEl.style.color = '#f87171';
+  }
+}
+
+// ---------- Panel ----------
+const panel = document.getElementById('panel');
+const pTitle = document.getElementById('p-title');
+const pMeta = document.getElementById('p-meta');
+const pBody = document.getElementById('p-body');
+
+function closePanel() { panel.classList.remove('open'); selectedKey = null; selectedColor = null;
+  panel.style.setProperty('--panel-accent', '#fde047'); rebuild(); }
+svg.on("click", closePanel);
+
+async function onNodeClick(d) {
+  selectedKey = keyOf(d);
+  selectedColor = colorOf(d);
+  panel.style.setProperty('--panel-accent', selectedColor);
+  rebuild();
+  const tid = d.data._thoughtId;
+  pTitle.textContent = d.data.name;
+  pMeta.textContent = '';
+  pBody.innerHTML = '<div style="opacity:0.5;font-size:11px">lade Kontext…</div>';
+  panel.classList.add('open');
+  if (!tid) {
+    pBody.innerHTML = `<h4>Kategorie</h4><div>Strukturknoten ohne Chat-Eintrag.</div>`;
+    return;
+  }
+  try {
+    const r = await fetch('/api/context?id=' + encodeURIComponent(tid));
+    const data = await r.json();
+    renderPanel(data);
+  } catch (e) {
+    pBody.innerHTML = '<div style="color:#f87171">Fehler beim Laden.</div>';
+  }
+}
+
+function renderMd(text) {
+  try {
+    const raw = marked.parse(text || '', { breaks: true, gfm: true });
+    return DOMPurify.sanitize(raw, { ADD_ATTR: ['target'] });
+  } catch (e) { return escapeHtml(text || ''); }
+}
+
+function renderPanel(data) {
+  const t = data.thought || {};
+  const c = data.context || {};
+  const parts = [];
+  if (c.question) parts.push(`<h4>Frage</h4><div class="md">${renderMd(c.question)}</div>`);
+  if (c.assistant) parts.push(`<h4>Claudes Antwort</h4><div class="md">${renderMd(c.assistant)}</div>`);
+  if (c.tool) {
+    const ti = typeof c.tool.input === 'string' ? c.tool.input : JSON.stringify(c.tool.input, null, 2);
+    parts.push(`<h4>Tool-Aufruf · ${escapeHtml(c.tool.name || t.tool_name || '')}</h4><pre>${escapeHtml(ti || '')}</pre>`);
+  }
+  if (c.tool_result) parts.push(`<h4>Tool-Ergebnis</h4><div class="md">${renderMd(c.tool_result)}</div>`);
+  if (!parts.length) parts.push(`<div style="opacity:0.6">Keine Kontextdaten verfügbar.</div>`);
+  const buttons = [];
+  if (t.transcript_path) buttons.push(`<button class="btn" onclick='openTranscript(${JSON.stringify(t.transcript_path)})'>📂 Transkript öffnen</button>`);
+  if (t.session_id) {
+    buttons.push(`<button class="btn" onclick='copyText(${JSON.stringify(t.session_id)})'>📋 Session-ID</button>`);
+    buttons.push(`<button class="btn" onclick='copyText("claude --resume " + ${JSON.stringify(t.session_id)})'>📋 claude --resume</button>`);
+  }
+  if (buttons.length) {
+    parts.push('<h4>Sprung zum Chat</h4><div>' + buttons.join('') + '</div>');
+    parts.push(`<div class="meta">Terminal: <kbd>claude --resume ${escapeHtml(t.session_id || '')}</kbd></div>`);
+  }
+  pMeta.textContent = t.session_id ? ('Session · ' + t.session_id.slice(0, 8)) : '';
+  pBody.innerHTML = parts.join('');
+}
+
+async function openTranscript(path) {
+  await fetch('/api/open', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({path}) });
+}
+async function copyText(s) { try { await navigator.clipboard.writeText(s); } catch (e) {} }
+
+// --- Suche (vor Boot initialisieren, damit rebuild() applySearch nutzen kann) ---
+const searchInput = document.getElementById('search-input');
+const searchHits = document.getElementById('search-hits');
+let searchTerm = "";
+function applySearch() {
+  if (!searchHits) return;
+  const q = searchTerm.trim().toLowerCase();
+  const active = q.length >= 1;
+  let hits = 0;
+  // 2D-Match
+  d3.selectAll('g.node').each(function(d) {
+    const hit = active && ((d.data.name || "").toLowerCase().includes(q));
+    this.classList.toggle('search-match', active && hit);
+    this.classList.toggle('search-nomatch', active && !hit);
+    if (hit) hits++;
+  });
+  d3.selectAll('.link').each(function(d) {
+    const hit = active && ((d.target.data.name || "").toLowerCase().includes(q)
+      || (d.source.data.name || "").toLowerCase().includes(q));
+    this.classList.toggle('search-dim', active && !hit);
+  });
+  // 3D-Match: Opacity der Sphere-Materials anpassen
+  if (forceGraph3d && window.THREE) {
+    const scene = forceGraph3d.scene();
+    if (scene) {
+      const data = forceGraph3d.graphData();
+      const matchIds = new Set();
+      if (active) {
+        data.nodes.forEach(n => {
+          if ((n.name || "").toLowerCase().includes(q)) matchIds.add(n.id);
+        });
+        if (!settings.threeD) {} else hits = matchIds.size;  // use 3D hits if 2D hidden
+      }
+      // Nodes: traverse graph's node-objects
+      data.nodes.forEach(n => {
+        const obj = n.__threeObj;
+        if (!obj) return;
+        obj.traverse(child => {
+          if (child.material && child.material.opacity !== undefined) {
+            if (!active) {
+              // reset: restore age-based opacity on spheres
+              if (child.geometry && child.geometry.type === 'SphereGeometry') {
+                const af = typeof n._ageFactor === 'number' ? n._ageFactor : 0.6;
+                child.material.opacity = (n.status !== 'thinking' && n.depth > 1) ? 0.05 + af * 0.92 : 0.97;
+              } else {
+                child.material.opacity = 0.97;
+              }
+            } else {
+              child.material.opacity = matchIds.has(n.id) ? 1 : 0.08;
+            }
+            child.material.transparent = true;
+          }
+        });
+      });
+      // Links: dim non-matches
+      data.links.forEach(l => {
+        const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+        const dstId = typeof l.target === 'object' ? l.target.id : l.target;
+        const hit = !active || matchIds.has(srcId) || matchIds.has(dstId);
+        if (l.__lineObj && l.__lineObj.material) {
+          l.__lineObj.material.opacity = hit ? 0.3 : 0.03;
+          l.__lineObj.material.transparent = true;
+        }
+      });
+    }
+  }
+  searchHits.textContent = active ? (hits + ' Treffer') : '';
+}
+if (searchInput) searchInput.addEventListener('input', () => { searchTerm = searchInput.value; applySearch(); });
+
+// Auto-Fit Button (beide Modi — nutzen denselben WebGL-Graph)
+function doAutoFit() {
+  if (!forceGraph3d || !forceGraph3d.zoomToFit) { autoFit(); return; }
+  // Warte bis Simulation settled bevor fit (sonst kann bbox noch 0 sein)
+  const pad = settings.threeD ? 80 : 110;
+  forceGraph3d.zoomToFit(900, pad);
+  // In 2D: zusätzlich Kamera auf Z-Achse zwingen (nach zoomToFit kann sich x/y verschieben)
+  if (!settings.threeD) {
+    setTimeout(() => {
+      const pos = forceGraph3d.cameraPosition();
+      forceGraph3d.cameraPosition({ x: pos.x || 0, y: pos.y || 0, z: Math.abs(pos.z) || 500 },
+        { x: pos.x || 0, y: pos.y || 0, z: 0 }, 0);
+    }, 950);
+  }
+}
+document.getElementById('auto-fit-btn').addEventListener('click', doAutoFit);
+window.addEventListener('keydown', e => {
+  if (e.key === 'f' && !e.target.closest('input, textarea')) doAutoFit();
+});
+
+// --- 3D-Modus via 3d-force-graph ---
+let forceGraph3d = null;
+
+function init3D() {
+  if (forceGraph3d) { update3D(); return; }
+  if (!window.ForceGraph3D) {
+    console.warn('ForceGraph3D not loaded');
+    return;
+  }
+  const el = document.getElementById('map-3d');
+  forceGraph3d = ForceGraph3D({ controlType: 'orbit' })(el);
+  window.__fg3d = forceGraph3d;
+  forceGraph3d
+    .backgroundColor(settings.lightMode ? '#eaedf3' : '#070b10')
+    .nodeResolution(24)
+    .nodeLabel(n => `<div class="graph-tooltip" style="color:${n.color};background:rgba(15,20,25,0.92);border:1px solid ${n.color}40;font-weight:600">${escapeHtml(n.name)}</div>`)
+    .linkColor(l => l.color || '#555')
+    .linkOpacity(0.35)
+    .linkWidth(l => l.active ? 2.2 : 1.3)
+    .linkDirectionalParticles(l => l.active ? 4 : 2)
+    .linkDirectionalParticleSpeed(l => {
+      if (l.active) return 0.020;
+      const af = typeof l.ageFactor === 'number' ? l.ageFactor : 0.5;
+      return 0.0015 + af * 0.015;  // alt → langsam, neu → schnell
+    })
+    .linkDirectionalParticleWidth(l => {
+      if (l.active) return 3.2;
+      const af = typeof l.ageFactor === 'number' ? l.ageFactor : 0.5;
+      return 0.7 + af * 2.3;  // 0.7 (alt) .. 3.0 (neu)
+    })
+    .linkDirectionalParticleColor(l => l.color || '#fde047')
+    .showNavInfo(false)
+    .onNodeClick(n => {
+      const d3Node = root.descendants().find(x => keyOf(x) === n.id);
+      if (d3Node) toggleCollapse(d3Node);
+    });
+  // Custom nodeThreeObject: Kugel mit alter-abhängiger Opacity + Label rechts daneben
+  forceGraph3d.nodeThreeObjectExtend(false);
+  forceGraph3d.nodeThreeObject(n => {
+    if (!window.THREE) return null;
+    const group = new THREE.Group();
+    const r = n.depth === 0 ? 10 : n.depth === 1 ? 5 : n.depth === 2 ? 3 : 1.8;
+    const af = typeof n._ageFactor === 'number' ? n._ageFactor : 0.6;
+    // Opacity: 0.05 (sehr alt) .. 0.97 (neu), aktiv/Struktur = 0.97
+    let opacity = 0.97;
+    if (n.status !== 'thinking' && n.depth > 1) opacity = 0.05 + af * 0.92;
+    const mat = new THREE.MeshBasicMaterial({
+      color: n.color, transparent: true, opacity, depthWrite: opacity > 0.9
+    });
+    const sphere = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 24), mat);
+    group.add(sphere);
+    // Root nie mit Label (auch in 3D)
+    if (settings.showLabels && window.SpriteText && n.depth !== 0) {
+      const baseSize = n.depth === 1 ? 4.8 : n.depth === 2 ? 3.2 : 2;
+      const sizeScale = n.depth <= 1 ? 1 : (0.5 + af * 0.6);
+      const sprite = new SpriteText(truncateLabel(n.name));
+      sprite.color = settings.lightMode ? readableColor(n.color) : n.color;
+      // Outline statt Hintergrund: schwarz im Dark-Mode, weiß im Light-Mode
+      if (settings.labelOutline !== false) {
+        sprite.strokeColor = settings.lightMode ? 'rgba(255,255,255,0.98)' : 'rgba(0,0,0,0.98)';
+        sprite.strokeWidth = 0.28;  // nochmal dicker
+      } else {
+        sprite.strokeWidth = 0;
+      }
+      sprite.backgroundColor = null;  // kein Hintergrund mehr
+      sprite.padding = 0;
+      sprite.textHeight = baseSize * sizeScale;
+      sprite.position.set(r + 3, 0, 0);
+      sprite.material.depthTest = false;
+      sprite.material.transparent = true;
+      // Opacity nach Alter: 0.05 (sehr alt) .. 0.97 (neu), Structure/Aktiv = 0.97
+      sprite.material.opacity = (n.status === 'thinking' || n.depth <= 1) ? 0.97 : (0.05 + af * 0.92);
+      sprite.renderOrder = 10;
+      group.add(sprite);
+      // Halte Label-Position in Kamera-Rechts-Richtung
+      group.userData.updateLabelPos = (cam) => {
+        const right = new THREE.Vector3();
+        cam.matrixWorld.extractBasis(right, new THREE.Vector3(), new THREE.Vector3());
+        sprite.position.copy(right.multiplyScalar(r + 3));
+      };
+    }
+    return group;
+  });
+
+  // Pro Frame: Label-Positionen in Kamera-Rechts-Richtung aktualisieren (für "rechts neben Bubble")
+  forceGraph3d.onEngineTick(() => {
+    const scene = forceGraph3d.scene();
+    const cam = forceGraph3d.camera();
+    if (!scene || !cam) return;
+    scene.traverse(obj => {
+      if (obj.userData && obj.userData.updateLabelPos) obj.userData.updateLabelPos(cam);
+    });
+  });
+  // Klassische Orbit-Navigation: rechts = orbit, links = move (pan); Mausrad = Zoom
+  const controls = forceGraph3d.controls();
+  if (controls) {
+    if (controls.mouseButtons) {
+      controls.mouseButtons = { LEFT: 2, MIDDLE: 1, RIGHT: 0 };  // 0=ROTATE, 1=DOLLY, 2=PAN
+    }
+    controls.enableZoom = true;
+    controls.enablePan = true;
+    controls.enableRotate = true;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.zoomSpeed = 1.2;
+    controls.panSpeed = 1.0;
+    controls.rotateSpeed = 0.8;
+    if (controls.update) controls.update();
+  }
+  // Rechte Maustaste Kontextmenü deaktivieren im 3D-Canvas
+  el.addEventListener('contextmenu', e => e.preventDefault());
+  forceGraph3d.cameraPosition({ z: 520 });
+
+  // Layout-Forces: kompakt, möglichst kurze Verbindungen, wenig Überschneidung
+  const linkForce = forceGraph3d.d3Force('link');
+  if (linkForce) {
+    linkForce.distance(l => {
+      const d = (typeof l.source === 'object' ? l.source.depth : 0);
+      // Hauptast → Theme kurz; Theme → Tool noch kürzer
+      return d === 0 ? 55 : d === 1 ? 28 : d === 2 ? 16 : 12;
+    });
+    linkForce.strength(l => {
+      const d = (typeof l.source === 'object' ? l.source.depth : 0);
+      return d === 0 ? 0.9 : d === 1 ? 1.2 : 1.4;  // tiefer = stärker
+    });
+  }
+  const chargeForce = forceGraph3d.d3Force('charge');
+  if (chargeForce) {
+    chargeForce.strength(d => {
+      if (d.depth === 0) return -350;
+      if (d.depth === 1) return -140;
+      if (d.depth === 2) return -45;
+      return -12;  // Leaf-Tools stoßen sich nur minimal ab
+    });
+    // Kürzere Reichweite, damit Abstoßung nur lokal wirkt → weniger Explosion
+    chargeForce.distanceMax(220);
+  }
+  // Center-Attract stärker → Graph bleibt kompakt
+  const centerForce = forceGraph3d.d3Force('center');
+  if (centerForce && centerForce.strength) centerForce.strength(0.06);
+
+  update3D();
+}
+
+// Knoten fokussieren (Log-Click + andere Trigger) — zentriert Knoten im Viewport
+function focusNodeById(thoughtId) {
+  if (!thoughtId) return;
+  const key = 't:' + thoughtId;
+  if (settings.threeD && forceGraph3d) {
+    const data = forceGraph3d.graphData();
+    const n3d = data.nodes.find(n => n.id === key);
+    if (!n3d || n3d.x == null) return;
+    const distance = 140;
+    const len = Math.hypot(n3d.x || 0.01, n3d.y || 0.01, n3d.z || 0.01);
+    const distRatio = 1 + distance / Math.max(len, 10);
+    forceGraph3d.cameraPosition(
+      { x: n3d.x * distRatio, y: n3d.y * distRatio, z: n3d.z * distRatio },
+      n3d,
+      1000
+    );
+    return;
+  }
+  if (!root) return;
+  const node = root.descendants().find(n => n.data._thoughtId === thoughtId);
+  if (!node || node.x == null) return;
+  const W = window.innerWidth, H = window.innerHeight;
+  const scale = 1.25;
+  const tx = W/2 - node.x * scale;
+  const ty = H/2 - node.y * scale;
+  svg.transition().duration(700)
+    .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+  // Kurz hervorheben
+  selectedKey = keyOf(node);
+  rebuild();
+  setTimeout(() => { selectedKey = null; rebuild(); }, 2000);
+}
+
+// ============ Blender-Style 3D-Gizmo ============
+function drawGizmo() {
+  const svg = document.getElementById('gizmo3d');
+  if (!svg || !settings.threeD || !forceGraph3d) return;
+  const cam = forceGraph3d.camera();
+  if (!cam || !cam.matrixWorldInverse) return;
+  const cx = 55, cy = 55, len = 36;
+  const axes = [
+    { dir: [1,0,0],  col: '#ff4d6d', lbl: 'X',  view: 'right' },
+    { dir: [-1,0,0], col: '#7a2434', lbl: '',   view: 'left'  },
+    { dir: [0,1,0],  col: '#4ade80', lbl: 'Y',  view: 'top'   },
+    { dir: [0,-1,0], col: '#1f6633', lbl: '',   view: 'bottom' },
+    { dir: [0,0,1],  col: '#3b82f6', lbl: 'Z',  view: 'front' },
+    { dir: [0,0,-1], col: '#1e3a73', lbl: '',   view: 'back'  }
+  ];
+  const mat = cam.matrixWorldInverse.elements;
+  const transform = v => {
+    // v = axis direction (world). Transformiere nur Richtung (nicht Translation) → mat 3x3 rotation part
+    return [
+      mat[0]*v[0] + mat[4]*v[1] + mat[8]*v[2],
+      mat[1]*v[0] + mat[5]*v[1] + mat[9]*v[2],
+      mat[2]*v[0] + mat[6]*v[1] + mat[10]*v[2]
+    ];
+  };
+  const projected = axes.map(a => {
+    const v = transform(a.dir);
+    return { ...a, sx: v[0], sy: -v[1], z: -v[2] };
+  });
+  projected.sort((a, b) => a.z - b.z);  // hintere zuerst zeichnen
+  let html = `<circle class="axis-reset" cx="${cx}" cy="${cy}" r="10" onclick="snap3DView('reset')"/>`;
+  html += `<text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="9" fill="#fff" pointer-events="none">⟳</text>`;
+  // X/Y/Z axis lines (from origin to positive tip)
+  const pos = projected.filter(a => a.lbl);
+  for (const a of pos) {
+    const isFar = a.z > 0;
+    const opacity = isFar ? 0.35 : 1;
+    html += `<line x1="${cx}" y1="${cy}" x2="${cx+a.sx*len}" y2="${cy+a.sy*len}" stroke="${a.col}" stroke-width="2" opacity="${opacity}"/>`;
+  }
+  // Balls for all 6 directions
+  for (const a of projected) {
+    const isFar = a.z > 0;
+    const r = a.lbl ? 10 : 7;
+    const opacity = isFar ? 0.45 : 1;
+    const fill = a.lbl ? a.col : 'transparent';
+    const stroke = a.col;
+    html += `<circle class="axis-ball" cx="${cx+a.sx*len}" cy="${cy+a.sy*len}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="1.5" opacity="${opacity}" onclick="snap3DView('${a.view}')"/>`;
+    if (a.lbl) {
+      html += `<text x="${cx+a.sx*len}" y="${cy+a.sy*len+4}" text-anchor="middle" font-size="10" fill="#fff" opacity="${opacity}">${a.lbl}</text>`;
+    }
+  }
+  svg.innerHTML = html;
+}
+setInterval(drawGizmo, 80);
+
+function snap3DView(axis) {
+  if (!forceGraph3d) return;
+  const d = 520;
+  const positions = {
+    front:  { x: 0, y: 0, z: d },
+    back:   { x: 0, y: 0, z: -d },
+    right:  { x: d, y: 0, z: 0 },
+    left:   { x: -d, y: 0, z: 0 },
+    top:    { x: 0, y: d, z: 0.1 },
+    bottom: { x: 0, y: -d, z: 0.1 },
+    reset:  { x: d*0.5, y: d*0.35, z: d*0.8 }
+  };
+  forceGraph3d.cameraPosition(positions[axis] || positions.reset, { x: 0, y: 0, z: 0 }, 900);
+}
+function update3D() {
+  if (!forceGraph3d || !root) return;
+  const tss = root.descendants().map(n => n.data._ts).filter(x => x);
+  const tmax = tss.length ? Math.max(...tss) : 0;
+  const tmin = tss.length ? Math.min(...tss) : 0;
+  const span = Math.max(1, tmax - tmin);
+  const ageF = ts => { if (!ts) return 0.5; return 1 - (tmax - ts) / span; };
+
+  // Effektives Alter pro Knoten: eigenes _ts wenn vorhanden,
+  // sonst = _ts des jüngsten (neuesten) Sub-Knotens (rekursiv MAX).
+  const effectiveTs = new Map();
+  function computeTs(n) {
+    const own = n.data._ts || 0;
+    let maxChild = 0;
+    if (n.children) {
+      for (const c of n.children) {
+        const ct = computeTs(c);
+        if (ct > maxChild) maxChild = ct;
+      }
+    }
+    const eff = own || maxChild;  // eigene ts bevorzugt, sonst jüngster Sub
+    effectiveTs.set(n, eff);
+    return eff;
+  }
+  computeTs(root);
+  // Aktiv (thinking) in Sub-Tree?
+  const hasActive = new Map();
+  function computeActive(n) {
+    let a = n.data._status === 'thinking';
+    if (n.children) for (const c of n.children) a = computeActive(c) || a;
+    hasActive.set(n, a);
+    return a;
+  }
+  computeActive(root);
+
+  const nodes = [], links = [];
+  root.descendants().forEach(n => {
+    nodes.push({
+      id: keyOf(n),
+      name: n.data.name,
+      color: colorOf(n),
+      depth: n.depth,
+      status: n.data._status,
+      _ts: n.data._ts || 0,
+      _ageFactor: ageF(n.data._ts)
+    });
+  });
+  root.links().forEach(l => {
+    // Link folgt dem Kind (= target) — und zwar dem JÜNGSTEN Enkel im Target-Subtree
+    const childTs = effectiveTs.get(l.target) || 0;
+    links.push({
+      source: keyOf(l.source), target: keyOf(l.target),
+      color: colorOf(l.target),
+      active: hasActive.get(l.target) || false,
+      ageFactor: ageF(childTs)
+    });
+  });
+  forceGraph3d.graphData({ nodes, links });
+}
+
+// Boot
+applySettings();
+renderLegend();
+rebuild();
+setInterval(poll, 500);
+poll();
+
+window.addEventListener("resize", () => {
+  if (sim) sim.force("center", d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2)).alpha(0.3).restart();
+});
+</script>
+</body>
+</html>

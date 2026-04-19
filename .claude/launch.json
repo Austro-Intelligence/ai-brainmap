@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mindmap",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/peter/.claude/plugins/marketplaces/local-dev/plugins/brainmap/bin/mindmap-server.py"],
+      "port": 4823,
+      "autoPort": false
+    }
+  ]
+}
