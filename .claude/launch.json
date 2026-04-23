@@ -2,11 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "mindmap",
+      "name": "brainmap",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["/Users/peter/ClaudeProjects/ki-mindmap/plugins/ai-brainmap/bin/mindmap-server.py"],
-      "port": 4823,
-      "autoPort": false
+      "runtimeArgs": ["plugins/ai-brainmap/bin/mindmap-server.py"],
+      "port": 4823
     }
   ]
 }

@@ -37,6 +37,51 @@ def truncate(s: str, n: int = 80) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
+def flush_thoughts_from_transcript(transcript_path: str, session_full: str) -> None:
+    """Liest das Transkript und postet alle thinking/text-Blöcke als Gedanken-Thoughts.
+    Stabile IDs sorgen für Idempotenz gegenüber dem Server-Watcher.
+    """
+    if not transcript_path or not os.path.isfile(transcript_path):
+        return
+    sid = session_full[:8] if session_full else ""
+    try:
+        with open(transcript_path, "r", encoding="utf-8") as f:
+            for i, line in enumerate(f):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    ev = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                msg = ev.get("message") or {}
+                if (msg.get("role") or ev.get("type")) != "assistant":
+                    continue
+                content = msg.get("content")
+                if not isinstance(content, list):
+                    continue
+                for j, c in enumerate(content):
+                    t = c.get("type")
+                    if t not in ("thinking", "text"):
+                        continue
+                    body = (c.get("thinking") or c.get("text") or "").strip()
+                    if not body:
+                        continue
+                    kind = "thinking" if t == "thinking" else "assistant_text"
+                    post("/api/thought", {
+                        "id": f"{sid}-th-{i}-{j}",
+                        "kind": kind,
+                        "parent": "Thoughts",
+                        "text": body.replace("\n", " ")[:80],
+                        "status": "done",
+                        "detail": {"body": body[:4000]},
+                        "session_id": session_full,
+                        "transcript_path": transcript_path,
+                    })
+    except OSError:
+        return
+
+
 def summarize_tool_input(tool: str, tinput: dict) -> str:
     if not isinstance(tinput, dict):
         return tool
@@ -77,8 +122,8 @@ def main():
         post("/api/thought", {
             "id": f"{session}-user-{int(ts*1000)}",
             "kind": "user_prompt",
-            "parent": "Nutzer",
-            "text": truncate(prompt, 70) or "(Nutzer-Input)",
+            "parent": "Topics",
+            "text": truncate(prompt, 70) or "(user input)",
             "status": "done",
             "detail": {"prompt": prompt},
             **meta,
@@ -100,6 +145,7 @@ def main():
             "detail": {"tool_input": payload.get("tool_input") or {}},
             **meta,
         })
+        flush_thoughts_from_transcript(transcript, session_full)
         return
 
     if kind == "post_tool":
@@ -117,8 +163,9 @@ def main():
         return
 
     if kind == "stop":
-        # Keine eigenen "Antwort abgeschlossen"-Knoten mehr —
-        # die letzte Antwort wird via Transkript-Lookup am Nutzer-Prompt-Knoten sichtbar.
+        # Finale Gedanken-Blöcke nach dem letzten Tool noch sicher pushen,
+        # falls der Server-Watcher sie noch nicht gesehen hat.
+        flush_thoughts_from_transcript(transcript, session_full)
         return
 
 
@@ -126,8 +173,8 @@ def bucket_for(tool: str) -> str:
     if tool in ("WebSearch", "WebFetch"):
         return "Web"
     if tool in ("Agent", "Task"):
-        return "Agenten"
-    return "Werkzeuge"
+        return "Agents"
+    return "Tools"
 
 
 if __name__ == "__main__":
