@@ -7,6 +7,10 @@
 
 ## Live Context Visualizer for Claude Code
 
+<p align="center">
+  <img src="https://ai.peab.at/images/ai-brainmap-example.gif" alt="ai-brainmap live demo">
+</p>
+
 **See what Claude is thinking — in real time, in 2D or 3D.**
 
 `ai-brainmap` turns Claude Code's invisible reasoning into a living mindmap. Every
@@ -35,14 +39,6 @@ Then in any Claude Code session:
 The server listens on <http://127.0.0.1:4823>. Set `MINDMAP_PORT` to change the port.
 
 ---
-
-### Preview
-
-<p align="center">
-  <img src="https://ai.peab.at/images/ai-brainmap-example.gif" alt="ai-brainmap live demo">
-</p>
-
-<br>
 
 ### Screenshots
 
