@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-blueviolet)](https://docs.anthropic.com/claude-code)
 [![Made in Austria](https://img.shields.io/badge/Made%20in-Austria-red)](https://austro-intelligence.at)
-[![Version](https://img.shields.io/badge/version-0.5.0-green)](./plugins/ai-brainmap/.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.6.0-green)](./plugins/ai-brainmap/.claude-plugin/plugin.json)
 
 ## Live Context Visualizer for Claude Code
 
@@ -51,10 +51,10 @@ The server listens on <http://127.0.0.1:4823>. Set `MINDMAP_PORT` to change the 
                                                  ▼
                                        ┌────────────────────┐
                                        │ mindmap-server.py  │
-                                       │ (localhost:4823)   │
+                                       │ (127.0.0.1:4823)   │
                                        │ in-memory state    │
                                        └─────────┬──────────┘
-                                                 │ GET /api/state (polling)
+                                                 │ SSE /api/stream (push)
                                                  ▼
                                        ┌────────────────────┐
                                        │ public/index.html  │
@@ -67,9 +67,16 @@ The server listens on <http://127.0.0.1:4823>. Set `MINDMAP_PORT` to change the 
 - A local **Python HTTP server** keeps state and serves the Three.js + D3 frontend.
 - Claude Code **hooks** (`UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`)
   push events to the server.
-- The browser **polls `/api/state`** every 500 ms and updates the force graph
-  in place.
+- A **TranscriptWatcher** additionally tails your *current* session transcript
+  (`~/.claude/projects/…/*.jsonl`) so thinking blocks and assistant text appear
+  too. It only reads the active session's file, never arbitrary paths.
+- The browser receives **live deltas over SSE** (`/api/stream`) and updates the
+  force graph in place; a `/api/state` polling endpoint exists as a fallback for
+  browsers without `EventSource`.
 - Active nodes pulse yellow; finished nodes settle into place.
+- **Optional LLM clustering** can group nodes into topic branches. It is
+  off unless an OpenAI-compatible endpoint is reachable — see *Privacy &
+  security* below for exactly what data is sent and where.
 
 ---
 
@@ -105,14 +112,25 @@ ai-brainmap/
 
 ## Privacy & security
 
-- **Fully local.** The Python server binds to `127.0.0.1:4823` only. There are
-  no outbound network calls from the server or the frontend.
-- **No telemetry.** Your prompts and tool calls never leave your machine.
+- **Local by default.** The Python server binds to `127.0.0.1:4823` only —
+  it is not reachable from the network. The frontend makes no outbound calls.
+- **No telemetry.** The plugin sends nothing to Austro Intelligence or any
+  analytics service. Your prompts and tool calls stay on your machine.
 - **Hook failure is silent.** If the server is not running the hook bridge
-  returns immediately — Claude Code is never blocked by the plugin.
-- **Read-only of your own transcript.** An optional replay endpoint
-  (`POST /api/replay`) reads a Claude transcript file you pass in and
-  visualizes its history; it does not access arbitrary files.
+  returns immediately (0.4 s timeout) — Claude Code is never blocked by the
+  plugin.
+- **Read-only of your own transcript.** The TranscriptWatcher tails only the
+  *active* session's `*.jsonl`. The replay endpoint (`POST /api/replay`)
+  reads a transcript file you explicitly pass in; neither accesses arbitrary
+  files.
+- **Optional LLM clustering — the one case data leaves the process.** If you
+  configure clustering, the server POSTs node labels/summaries to an
+  OpenAI-compatible endpoint (`{url}:{port}/v1/chat/completions`) to group them
+  into topics. The default target is **`localhost:1234`** (LM Studio / Ollama),
+  so out of the box nothing leaves your machine. If you point the `url` in
+  `~/.claude/brainmap-llm.json` at a **remote** host, your node texts are sent
+  there — only enable that with a provider you trust. Delete the config file (or
+  leave no local LLM running) to keep clustering fully offline.
 
 ---
 

@@ -7,7 +7,6 @@
     "email": "hello@austro-intelligence.at",
     "url": "https://austro-intelligence.at"
   },
-  "homepage": "https://github.com/Austro-Intelligence/ai-brainmap",
   "plugins": [
     {
       "name": "ai-brainmap",
