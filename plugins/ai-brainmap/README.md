@@ -1,13 +1,4 @@
 <p align="center">
-  <img src="https://ai.peab.at/images/ai-brainmap-example.gif" alt="ai-brainmap live demo" width="100%">
-</p>
-
-<p align="center">
-  <img src="https://ai.peab.at/images/ai-brainmap-screen1-example.png" alt="ai-brainmap screenshot 1" width="49%">
-  <img src="https://ai.peab.at/images/ai-brainmap-screen2-example.png" alt="ai-brainmap screenshot 2" width="49%">
-</p>
-
-<p align="center">
   <a href="https://austro-intelligence.at">
     <img src="https://ai.peab.at/images/austro_intelligence_fb-titelbild.png" alt="Austro Intelligence" width="240">
   </a>
@@ -18,6 +9,21 @@
 Visualize Claude's work live as an interactive 2D/3D mindmap. Every user prompt,
 tool call and response becomes a glowing node; the tree grows additively as
 Claude works.
+
+## Demo
+
+<p align="center">
+  <img src="https://ai.peab.at/images/ai-brainmap-example.gif" alt="ai-brainmap live demo">
+</p>
+
+<br>
+
+## Screenshots
+
+<p align="center">
+  <img src="https://ai.peab.at/images/ai-brainmap-screen1-example.png" alt="ai-brainmap screenshot — graph view" width="49%">
+  <img src="https://ai.peab.at/images/ai-brainmap-screen2-example.png" alt="ai-brainmap screenshot — topic tree view" width="49%">
+</p>
 
 ## Install
 

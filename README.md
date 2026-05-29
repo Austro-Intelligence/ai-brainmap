@@ -20,6 +20,23 @@ clarity, not black boxes.
 
 ---
 
+## Demo
+
+<p align="center">
+  <img src="https://ai.peab.at/images/ai-brainmap-example.gif" alt="ai-brainmap live demo">
+</p>
+
+<br>
+
+## Screenshots
+
+<p align="center">
+  <img src="https://ai.peab.at/images/ai-brainmap-screen1-example.png" alt="ai-brainmap screenshot — graph view" width="49%">
+  <img src="https://ai.peab.at/images/ai-brainmap-screen2-example.png" alt="ai-brainmap screenshot — topic tree view" width="49%">
+</p>
+
+---
+
 ## Install
 
 ```text
