@@ -1,5 +1,3 @@
-![AI Logo](https://ai.peab.at/images/austro_intelligence_fb-titelbild.png)
-
 # ai-brainmap
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -14,26 +12,6 @@
 `ai-brainmap` turns Claude Code's invisible reasoning into a living mindmap. Every
 user prompt, tool call and response is rendered on the fly, so you can *watch*
 your AI work instead of guessing what it's doing.
-
-Open source. Lightweight. Local by default. Built for developers who want
-clarity, not black boxes.
-
----
-
-## Demo
-
-<p align="center">
-  <img src="https://ai.peab.at/images/ai-brainmap-example.gif" alt="ai-brainmap live demo">
-</p>
-
-<br>
-
-## Screenshots
-
-<p align="center">
-  <img src="https://ai.peab.at/images/ai-brainmap-screen1-example.png" alt="ai-brainmap screenshot — graph view" width="49%">
-  <img src="https://ai.peab.at/images/ai-brainmap-screen2-example.png" alt="ai-brainmap screenshot — topic tree view" width="49%">
-</p>
 
 ---
 
@@ -55,6 +33,23 @@ Then in any Claude Code session:
 ```
 
 The server listens on <http://127.0.0.1:4823>. Set `MINDMAP_PORT` to change the port.
+
+---
+
+### Preview
+
+<p align="center">
+  <img src="https://ai.peab.at/images/ai-brainmap-example.gif" alt="ai-brainmap live demo">
+</p>
+
+<br>
+
+### Screenshots
+
+<p align="center">
+  <img src="https://ai.peab.at/images/ai-brainmap-screen1-example.png" alt="ai-brainmap screenshot — graph view" width="49%">
+  <img src="https://ai.peab.at/images/ai-brainmap-screen2-example.png" alt="ai-brainmap screenshot — topic tree view" width="49%">
+</p>
 
 ---
 
@@ -184,5 +179,10 @@ in `public/index.html` are picked up on refresh.
 MIT — see [LICENSE](./LICENSE).
 
 ---
+
+![AI Logo](https://ai.peab.at/images/austro_intelligence_fb-titelbild.png)
+
+Open source. Lightweight. Local by default. Built for developers who want
+clarity, not black boxes.
 
 Made with ❤️ in 🇦🇹 by [Austro Intelligence](https://austro-intelligence.at).
