@@ -15,8 +15,8 @@
 user prompt, tool call and response is rendered on the fly, so you can *watch*
 your AI work instead of guessing what it's doing.
 
-Open source. Lightweight. 100 % local. Built for developers who want clarity, not
-black boxes.
+Open source. Lightweight. Local by default. Built for developers who want
+clarity, not black boxes.
 
 ---
 
@@ -30,10 +30,11 @@ black boxes.
 Then in any Claude Code session:
 
 ```text
-/brainmap start   # start server + open browser
-/brainmap stop    # stop server
-/brainmap status  # is it running?
-/brainmap clear   # reset the map
+/brainmap start      # start server + open browser
+/brainmap topictree  # open the cluster-centric view in a second tab
+/brainmap stop       # stop server
+/brainmap status     # is it running?
+/brainmap clear      # reset the map
 ```
 
 The server listens on <http://127.0.0.1:4823>. Set `MINDMAP_PORT` to change the port.
@@ -74,9 +75,11 @@ The server listens on <http://127.0.0.1:4823>. Set `MINDMAP_PORT` to change the 
   force graph in place; a `/api/state` polling endpoint exists as a fallback for
   browsers without `EventSource`.
 - Active nodes pulse yellow; finished nodes settle into place.
-- **Optional LLM clustering** can group nodes into topic branches. It is
+- **Optional LLM clustering** can group nodes into topic branches. It stays
   off unless an OpenAI-compatible endpoint is reachable — see *Privacy &
-  security* below for exactly what data is sent and where.
+  security* below for exactly what data is sent and where. The cluster-centric
+  `topictree` view (`/brainmap topictree`) renders those topics as the main
+  branches; it runs in its own browser tab alongside the default view.
 
 ---
 
